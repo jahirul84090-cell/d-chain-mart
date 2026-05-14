@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 import { useSession } from "next-auth/react";
 import useWishlistStore from "@/lib/wishlistStore";
@@ -77,7 +78,6 @@ export default function EcommerceHeader() {
   const [activeTab, setActiveTab] = useState("menu");
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoryError, setCategoryError] = useState(null);
@@ -85,83 +85,61 @@ export default function EcommerceHeader() {
   const searchInputRef = useRef(null);
   const router = useRouter();
 
-  // ── Fetch categories ──────────────────────────────────────────────────────
   useEffect(() => {
     async function fetchCategories() {
       try {
         const response = await fetch("/api/admin/categories", {
           cache: "no-store",
         });
-        if (!response.ok) {
+        if (!response.ok)
           throw new Error(`Failed to fetch categories: ${response.statusText}`);
-        }
         const { categories: data } = await response.json();
-
-        // FIX: preserve `id` alongside name & slug so navigation works
-        const categoryNames = data.map((item) => ({
-          id: item.id,
-          name: item.name,
-          slug: item.slug || formatSlug(item.name),
-        }));
-
-        setCategories(categoryNames);
+        setCategories(
+          data.map((item) => ({
+            id: item.id,
+            name: item.name,
+            slug: item.slug || formatSlug(item.name),
+          })),
+        );
         setCategoryError(null);
       } catch (error) {
-        console.error("Error fetching categories:", error);
         setCategoryError("Failed to load categories.");
         toast.error("Failed to load product categories.");
       } finally {
         setLoadingCategories(false);
       }
     }
-
     fetchCategories();
   }, []);
 
-  // ── Scroll detection with hysteresis (no flicker at threshold) ───────────
-  // Collapse when scrolled DOWN past the utility bar height (~96px).
-  // Only expand again when user scrolls back UP near the very top (<10px).
-  // This prevents the toggle-loop that happens with a single `scrollY > 50` check.
   useEffect(() => {
-    const COLLAPSE_AT = 96; // px — must scroll past this to collapse
-    const EXPAND_AT = 10; // px — must return this close to top to expand
-
+    const COLLAPSE_AT = 96;
+    const EXPAND_AT = 10;
     let lastY = window.scrollY;
 
     const handleScroll = () => {
       const y = window.scrollY;
       const goingDown = y > lastY;
       lastY = y;
-
-      if (goingDown && y > COLLAPSE_AT) {
-        setScrolled(true);
-      } else if (!goingDown && y < EXPAND_AT) {
-        setScrolled(false);
-      }
-      // In the band between EXPAND_AT and COLLAPSE_AT: do nothing — no flicker.
+      if (goingDown && y > COLLAPSE_AT) setScrolled(true);
+      else if (!goingDown && y < EXPAND_AT) setScrolled(false);
     };
 
-    // Set correct initial state without animation
     setScrolled(window.scrollY > COLLAPSE_AT);
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ── Auto-focus mobile search input ───────────────────────────────────────
   useEffect(() => {
     if (mobileSearchOpen && searchInputRef.current) {
       const inputElement = searchInputRef.current.querySelector("input");
-      if (inputElement) {
-        setTimeout(() => inputElement.focus(), 50);
-      }
+      if (inputElement) setTimeout(() => inputElement.focus(), 50);
     }
   }, [mobileSearchOpen]);
 
   const handleNavigation = (href) => router.push(href);
   const closeMobileSearch = () => setMobileSearchOpen(false);
 
-  // ── Desktop category dropdown items ──────────────────────────────────────
   const categoryContent = loadingCategories ? (
     <div className="flex justify-center items-center py-6 gap-2 text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
@@ -179,7 +157,7 @@ export default function EcommerceHeader() {
     categories.map((cat) => (
       <DropdownMenuItem
         key={cat.slug}
-        className="text-sm uppercase tracking-wide font-medium hover:bg-accent cursor-pointer px-4 py-2.5 rounded-md transition-colors"
+        className="text-sm uppercase tracking-wide font-medium hover:bg-primary/10 hover:text-primary cursor-pointer px-4 py-2.5 rounded-md transition-colors"
         onClick={() => handleNavigation(`/allproducts?categoryId=${cat.id}`)}
       >
         {cat.name}
@@ -187,12 +165,11 @@ export default function EcommerceHeader() {
     ))
   );
 
-  // ── Mobile category buttons ───────────────────────────────────────────────
   const mobileCategoryButtons = categories.map((cat) => (
     <SheetClose asChild key={cat.slug}>
       <Button
         variant="outline"
-        className="justify-start truncate uppercase text-xs font-semibold tracking-wide"
+        className="justify-start truncate uppercase text-xs font-semibold tracking-wide hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
         onClick={() => handleNavigation(`/allproducts?categoryId=${cat.id}`)}
       >
         {cat.name}
@@ -206,7 +183,7 @@ export default function EcommerceHeader() {
           DESKTOP HEADER
       ═══════════════════════════════════════════════ */}
       <header className="hidden md:block w-full sticky top-0 z-[100]">
-        {/* ── Top utility bar (logo + search + actions) ── */}
+        {/* ── Top utility bar ── */}
         <div
           className={`
             w-full bg-primary
@@ -217,12 +194,17 @@ export default function EcommerceHeader() {
                 : "max-h-[120px] opacity-100 overflow-visible py-4"
             }
           `}
+          style={{
+            boxShadow: scrolled
+              ? "none"
+              : "inset 0 -1px 0 hsl(var(--primary-foreground)/0.1)",
+          }}
         >
           <div className="flex items-center justify-between px-6 lg:px-10 max-w-7xl mx-auto">
             {/* Logo */}
             <Link
               href="/"
-              className="text-3xl font-extrabold text-primary-foreground tracking-tight shrink-0 hover:opacity-90 transition-opacity"
+              className="text-3xl font-extrabold text-primary-foreground tracking-tight shrink-0 hover:opacity-85 transition-opacity drop-shadow-sm"
             >
               ShopEase
             </Link>
@@ -242,24 +224,29 @@ export default function EcommerceHeader() {
           </div>
         </div>
 
-        {/* ── Bottom nav bar (always visible) ── */}
+        {/* ── Bottom nav bar ── */}
         <div
           className={`
-            w-full bg-primary/95 border-t border-primary-foreground/20
-            transition-shadow duration-300
-            ${scrolled ? "shadow-lg shadow-primary/40" : ""}
+            w-full bg-primary
+            border-t border-primary-foreground/10
+            transition-all duration-300
+            ${
+              scrolled
+                ? "shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.5),0_2px_8px_-2px_hsl(var(--primary)/0.35)]"
+                : "shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.3)]"
+            }
           `}
         >
           <div className="flex items-center justify-between max-w-7xl mx-auto px-6 h-12">
-            {/* LEFT: inline logo (only visible when scrolled) + categories */}
-            <div className="flex items-center gap-4">
-              {/* Logo appears in nav bar after scroll */}
+            {/* LEFT: logo (scroll-in) + categories */}
+            <div className="flex items-center gap-0">
               <Link
                 href="/"
                 className={`
                   text-xl font-extrabold text-primary-foreground tracking-tight
-                  transition-all duration-300 ease-in-out overflow-hidden
-                  ${scrolled ? "max-w-[140px] opacity-100 mr-2" : "max-w-0 opacity-0"}
+                  transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap
+                  hover:opacity-85
+                  ${scrolled ? "max-w-[140px] opacity-100 mr-3" : "max-w-0 opacity-0 mr-0"}
                 `}
               >
                 ShopEase
@@ -268,7 +255,13 @@ export default function EcommerceHeader() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    className="bg-primary-foreground text-primary text-sm font-semibold px-5 rounded-none h-12 hover:bg-accent transition-colors shadow-none"
+                    className="
+                      bg-primary-foreground text-primary text-sm font-bold
+                      px-5 rounded-none h-12 shadow-none border-0
+                      hover:bg-primary-foreground/90
+                      transition-colors duration-150
+                      disabled:opacity-60
+                    "
                     disabled={loadingCategories}
                   >
                     {loadingCategories ? (
@@ -283,7 +276,7 @@ export default function EcommerceHeader() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-56 mt-1 shadow-xl border border-border bg-card rounded-lg p-1"
+                  className="w-56 mt-0 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15),0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-border bg-card rounded-xl p-1.5"
                   align="start"
                   sideOffset={0}
                 >
@@ -299,11 +292,10 @@ export default function EcommerceHeader() {
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className="relative py-4 hover:text-primary-foreground/75 transition-colors duration-150 group"
+                      className="relative py-4 inline-block hover:text-primary-foreground/75 transition-colors duration-150 group"
                     >
                       {link.name}
-                      {/* underline hover effect */}
-                      <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary-foreground/60 transition-all duration-200 group-hover:w-full rounded-full" />
+                      <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-primary-foreground/70 transition-all duration-200 group-hover:w-full rounded-full" />
                     </Link>
                   </li>
                 ))}
@@ -311,8 +303,8 @@ export default function EcommerceHeader() {
             </nav>
 
             {/* RIGHT: shipping badge */}
-            <div className="hidden lg:flex items-center gap-1.5 text-xs font-medium text-primary-foreground/80">
-              <Truck className="h-4 w-4" />
+            <div className="hidden lg:flex items-center gap-1.5 bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground/90 backdrop-blur-sm">
+              <Truck className="h-3.5 w-3.5 shrink-0" />
               Free Shipping Over $50
             </div>
           </div>
@@ -325,31 +317,39 @@ export default function EcommerceHeader() {
       <header
         className={`
           md:hidden w-full bg-primary sticky top-0 z-50
-          transition-shadow duration-300
-          ${scrolled ? "shadow-xl shadow-primary/40" : "shadow-md"}
+          transition-all duration-300
+          ${
+            scrolled
+              ? "shadow-[0_4px_24px_-4px_hsl(var(--primary)/0.55),0_2px_8px_-2px_hsl(var(--primary)/0.4)]"
+              : "shadow-[0_2px_12px_-2px_hsl(var(--primary)/0.35)]"
+          }
         `}
       >
+        {/* Subtle inner top highlight line */}
+        <div className="absolute inset-x-0 top-0 h-px bg-primary-foreground/15 pointer-events-none" />
+
         <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
           {/* Left: hamburger + logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-primary-foreground hover:bg-primary-foreground/10 rounded-full"
+                  className="text-primary-foreground hover:bg-primary-foreground/15 rounded-xl h-9 w-9 transition-colors"
                   aria-label="Open navigation menu"
                 >
-                  <Menu className="h-6 w-6" />
+                  <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
 
               <SheetContent
                 side="left"
-                className="w-full max-w-sm p-0 bg-background"
+                className="w-full max-w-sm p-0 bg-background shadow-2xl"
               >
-                <SheetHeader className="px-5 py-4 border-b border-border">
-                  <SheetTitle className="text-xl font-bold text-primary">
+                {/* Sheet header with primary bg */}
+                <SheetHeader className="px-5 py-4 bg-primary">
+                  <SheetTitle className="text-xl font-extrabold text-primary-foreground tracking-tight drop-shadow-sm">
                     ShopEase
                   </SheetTitle>
                 </SheetHeader>
@@ -359,7 +359,7 @@ export default function EcommerceHeader() {
                   onValueChange={setActiveTab}
                   className="w-full"
                 >
-                  <TabsList className="grid grid-cols-2 h-11 w-full rounded-none border-b border-border bg-muted/50 p-0">
+                  <TabsList className="grid grid-cols-2 h-11 w-full rounded-none border-b border-border bg-muted/40 p-0">
                     <TabsTrigger
                       value="menu"
                       className="rounded-none h-full font-semibold text-sm data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
@@ -380,10 +380,12 @@ export default function EcommerceHeader() {
                       {coreMenuLinks.map((link) => (
                         <SheetClose asChild key={link.name}>
                           <li
-                            className="flex items-center gap-3 text-base font-semibold text-foreground hover:bg-accent px-3 py-3 rounded-lg transition-colors cursor-pointer"
+                            className="flex items-center gap-3 text-base font-semibold text-foreground hover:bg-primary/8 hover:text-primary px-3 py-3 rounded-xl transition-colors cursor-pointer group"
                             onClick={() => handleNavigation(link.href)}
                           >
-                            <Home className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                              <Home className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                            </div>
                             {link.name}
                           </li>
                         </SheetClose>
@@ -396,10 +398,12 @@ export default function EcommerceHeader() {
                       {extendedLinks.map((link) => (
                         <SheetClose asChild key={link.name}>
                           <li
-                            className="flex items-center gap-3 text-sm font-medium text-foreground hover:bg-accent px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
+                            className="flex items-center gap-3 text-sm font-medium text-foreground hover:bg-primary/8 hover:text-primary px-3 py-2.5 rounded-xl transition-colors cursor-pointer group"
                             onClick={() => handleNavigation(link.href)}
                           >
-                            <link.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                              <link.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                            </div>
                             {link.name}
                           </li>
                         </SheetClose>
@@ -408,14 +412,14 @@ export default function EcommerceHeader() {
 
                     <Separator className="my-3" />
 
-                    <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground font-medium bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2.5 px-3 py-3 text-xs text-primary font-semibold bg-primary/8 border border-primary/20 rounded-xl">
                       <Truck className="h-4 w-4 shrink-0" />
                       Free Shipping on orders over $50
                     </div>
                   </TabsContent>
 
                   {/* Categories tab */}
-                  <TabsContent value="categories" className="mt-0 px-4 py-2">
+                  <TabsContent value="categories" className="mt-0 px-4 py-3">
                     {loadingCategories ? (
                       <div className="flex justify-center items-center py-10 gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -428,7 +432,7 @@ export default function EcommerceHeader() {
                         Failed to load categories.
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2 py-3">
+                      <div className="grid grid-cols-2 gap-2">
                         {mobileCategoryButtons}
                       </div>
                     )}
@@ -439,7 +443,7 @@ export default function EcommerceHeader() {
 
             <Link
               href="/"
-              className="text-2xl font-extrabold text-primary-foreground tracking-tight hover:opacity-90 transition-opacity"
+              className="text-xl font-extrabold text-primary-foreground tracking-tight hover:opacity-85 transition-opacity drop-shadow-sm"
             >
               ShopEase
             </Link>
@@ -449,7 +453,7 @@ export default function EcommerceHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-primary-foreground hover:bg-primary-foreground/10 rounded-full"
+            className="text-primary-foreground hover:bg-primary-foreground/15 rounded-xl h-9 w-9 transition-colors"
             onClick={() => setMobileSearchOpen(true)}
             aria-label="Open search"
           >
@@ -461,14 +465,13 @@ export default function EcommerceHeader() {
       {/* ═══════════════════════════════════════════════
           MOBILE SEARCH OVERLAY
       ═══════════════════════════════════════════════ */}
-      {/* Backdrop */}
       <div
         className={`
           fixed inset-0 z-[140] md:hidden
           transition-opacity duration-300
           ${
             mobileSearchOpen
-              ? "opacity-100 visible bg-background/80 backdrop-blur-sm"
+              ? "opacity-100 visible bg-background/70 backdrop-blur-md"
               : "opacity-0 invisible"
           }
         `}
@@ -476,11 +479,11 @@ export default function EcommerceHeader() {
         aria-hidden="true"
       />
 
-      {/* Search panel */}
       <div
         className={`
           fixed top-0 left-0 right-0 z-[150] md:hidden
-          bg-card border-b border-border shadow-xl
+          bg-primary
+          shadow-[0_8px_32px_-4px_hsl(var(--primary)/0.5),0_2px_12px_-2px_hsl(var(--primary)/0.4)]
           transition-transform duration-300 ease-out
           ${mobileSearchOpen ? "translate-y-0" : "-translate-y-full"}
         `}
@@ -488,6 +491,8 @@ export default function EcommerceHeader() {
         aria-modal="true"
         aria-label="Search"
       >
+        {/* Inner highlight line */}
+        <div className="absolute inset-x-0 top-0 h-px bg-primary-foreground/15 pointer-events-none" />
         <div className="flex items-center gap-2 px-4 py-3 max-w-4xl mx-auto">
           <div className="flex-1" ref={searchInputRef}>
             <HeaderSearchComponent
@@ -500,7 +505,7 @@ export default function EcommerceHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-foreground hover:bg-muted rounded-full shrink-0"
+            className="text-primary-foreground hover:bg-primary-foreground/15 rounded-xl h-9 w-9 shrink-0 transition-colors"
             onClick={closeMobileSearch}
             aria-label="Close search"
           >
