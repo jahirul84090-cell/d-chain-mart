@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id                      String    @id @default(uuid())
+  email                   String    @unique
+  password                String?
+  name                    String?
+  role                    Role      @default(USER)
+  isBlocked               Boolean   @default(false)
+  image                   String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  accounts                Account[]
+  sessions                Session[]
+  addresses               Address[]
+  orders                  Order[]
+  cart                    Cart?
+  wishlist                Wishlist?
+  reviews                 Review[]
+  googleId                String?   @unique
+  emailVerified           Boolean   @default(false)
+  otpCode                 String?   @unique
+  otpExpiresAt            DateTime?
+  lastSessionInvalidation DateTime?
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  slug     String    @unique
+  imageUrl String?
+  products Product[]
+}
+
+
+
+model Review {
+  id          String        @id @default(uuid())
+  productId   String
+  userId      String
+  rating      Int           @default(5) @db.SmallInt
+  title       String?       @db.VarChar(100)
+  content     String
+  isApproved  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  images      ReviewImage[]
+
+  product     Product       @relation(fields: [productId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@unique([productId, userId])
+  @@index([productId, userId])
+}
+
+model ReviewImage {
+  id        String   @id @default(uuid())
+  reviewId  String
+  url       String
+  createdAt DateTime @default(now())
+
+  review    Review   @relation(fields: [reviewId], references: [id])
+
+  @@index([reviewId])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  url       String
+  createdAt DateTime @default(now())
+
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+model CartItem {
+  id            String    @id @default(uuid())
+  cartId        String
+  productId     String
+  quantity      Int
+  selectedSize  String?
+  selectedColor String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  cart          Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [productId], references: [id])
+
+  @@index([cartId])
+  @@index([productId])
+}
+
+model Wishlist {
+  id       String    @id @default(uuid())
+  userId   String    @unique
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[] @relation(name: "ProductOnWishlist")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+model Product {
+  id               String         @id @default(uuid())
+  name             String
+  slug             String         @unique
+  shortdescription String?
+  description      String?          @db.Text
+  price            Float
+  stockAmount      Int            @default(0)
+
+  availableSizes   String?
+  availableColors  String?
+
+  isFeatured       Boolean        @default(false)
+  isPopular        Boolean        @default(false)
+  isNewArrival     Boolean        @default(false)
+  isSlider         Boolean        @default(false)
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  categoryId       String
+  category         Category       @relation(fields: [categoryId], references: [id])
+  mainImage        String
+  isActive         Boolean        @default(true)
+  images           ProductImage[]
+  totalSales       Float          @default(0)
+  views            Float          @default(0)
+  reviews          Review[]
+  wishlists        Wishlist[]     @relation(name: "ProductOnWishlist")
+  orderItems       OrderItem[]
+  oldPrice         Float          @default(0)
+  discount         Float          @default(0)
+  cartItems        CartItem[]
+
+  @@index([categoryId])
+}
+model Order {
+  id                  String      @id @default(uuid())
+  userId              String
+  orderTotal          Float
+  deliveryFee         Float       @default(0)
+  shippingAddressId   String
+  status              OrderStatus @default(PENDING)
+  paymentMethodId     String?
+  transactionNumber   String      @unique
+  isPaid              Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  isInvoiceGenerated  Boolean     @default(false)
+
+  invoice             Invoice?
+
+  user                User        @relation(fields: [userId], references: [id])
+  shippingAddress     Address     @relation(fields: [shippingAddressId], references: [id])
+  items               OrderItem[]
+  paymentMethod       PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([userId])
+  @@index([shippingAddressId])
+  @@index([paymentMethodId])
+}
+
+model OrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  productId     String
+  productSnapshot Json
+  quantity      Int
+  pricePaid     Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order         Order     @relation(fields: [orderId], references: [id])
+  product       Product   @relation(fields: [productId], references: [id])
+
+  @@unique([orderId, productId])
+  @@index([orderId, productId])
+}
+
+model DeliveryFee {
+  id        String   @id @default(uuid())
+  city      String?
+  country   String
+  amount    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([country, city])
+}
+
+model PaymentMethod {
+  id               String   @id @default(uuid())
+  name             String   @unique
+  accountNumber    String?
+  instructions     String?
+  isCashOnDelivery Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  orders Order[]
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  createdAt     DateTime @default(now())
+
+  invoiceUrl    String
+
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id])
+}
+
+model Address {
+  id          String   @id @default(uuid())
+  userId      String
+  street      String
+  city        String
+  state       String?
+  zipCode     String?
+  country     String
+  phoneNumber String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id])
+  orders      Order[]
+
+  @@index([userId])
+}
+
+model Media {
+  id        Int      @id @default(autoincrement())
+  url       String   @db.VarChar(255)
+  title     String?  @db.VarChar(255)
+  altText   String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+}
