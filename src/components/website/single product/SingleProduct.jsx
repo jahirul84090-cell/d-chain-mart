@@ -15,6 +15,8 @@ import {
   Loader2,
   CheckCircle,
   PackageX,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ImageModal from "@/components/others/Imagemodal";
@@ -34,14 +36,14 @@ export default function SingleProductDetail({ productData }) {
 
   const hasImages = productData?.images?.length > 0;
   const [selectedImage, setSelectedImage] = useState(
-    hasImages ? productData.images[0].url : productData.mainImage
+    hasImages ? productData.images[0].url : productData.mainImage,
   );
   const [thumbIndex, setThumbIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState(
-    (productData?.availableColors?.split(",") || [])[0]?.trim() || null
+    (productData?.availableColors?.split(",") || [])[0]?.trim() || null,
   );
   const [selectedSize, setSelectedSize] = useState(
-    (productData?.availableSizes?.split(",") || [])[0]?.trim() || null
+    (productData?.availableSizes?.split(",") || [])[0]?.trim() || null,
   );
   const [isAdding, setIsAdding] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -129,7 +131,7 @@ export default function SingleProductDetail({ productData }) {
     await updateCartItemQuantity(
       currentCartItem.dbItemId,
       newQty,
-      currentCartItem.id
+      currentCartItem.id,
     );
   };
 
@@ -140,7 +142,7 @@ export default function SingleProductDetail({ productData }) {
     }
     toggleWishlist(productData, isWishlisted);
     toast.success(
-      isWishlisted ? "Item removed from wishlist." : "Item added to wishlist!"
+      isWishlisted ? "Item removed from wishlist." : "Item added to wishlist!",
     );
   };
 
@@ -305,7 +307,62 @@ export default function SingleProductDetail({ productData }) {
               </div>
             </div>
           )}
+          {/* Shipping / Delivery / Support Info */}
+          <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xl">🚚</p>
+                <p className="mt-1 text-xs font-semibold text-gray-900">
+                  Fast Delivery
+                </p>
+                <p className="text-[11px] text-gray-500">2-5 Days</p>
+              </div>
 
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xl">💵</p>
+                <p className="mt-1 text-xs font-semibold text-gray-900">COD</p>
+                <p className="text-[11px] text-gray-500">Available</p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-xl">↩️</p>
+                <p className="mt-1 text-xs font-semibold text-gray-900">
+                  Return
+                </p>
+                <p className="text-[11px] text-gray-500">7 Days</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 p-4 border border-green-100">
+              <p className="text-sm font-semibold text-gray-900">
+                Need help with this product?
+              </p>
+
+              <p className="mt-1 text-xs text-gray-600">
+                Our support team is available from 10 AM to 10 PM.
+              </p>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <a href="tel:+8801XXXXXXXXX">
+                  <Button variant="outline" className="w-full rounded-xl h-11">
+                    <Phone className="w-4 h-4 mr-2" />
+                    Call Now
+                  </Button>
+                </a>
+
+                <a
+                  href="https://wa.me/8801XXXXXXXXX"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button className="w-full rounded-xl h-11 bg-green-500 hover:bg-green-600 text-white">
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    WhatsApp
+                  </Button>
+                </a>
+              </div>
+            </div>
+          </div>
           {/* quantity / add to cart desktop */}
           <div className="mt-6 flex items-center gap-3">
             {productData.stockAmount <= 0 ? (
@@ -607,7 +664,7 @@ export default function SingleProductDetail({ productData }) {
                                 onClick={() =>
                                   openImageModal(
                                     review.images.map((im) => im.url),
-                                    i
+                                    i,
                                   )
                                 }
                                 aria-label={`Open review image ${i + 1}`}
