@@ -186,7 +186,7 @@ export default function EcommerceHeader() {
         {/* ── Top utility bar ── */}
         <div
           className={`
-            w-full bg-primary
+            w-full bg-primary text-secondary
             transition-all duration-300 ease-in-out origin-top
             ${
               scrolled
