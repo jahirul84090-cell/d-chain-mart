@@ -8,67 +8,93 @@ import {
   LayoutGrid,
   List,
   XCircle,
-  SearchX,
+  SlidersHorizontal,
+  Star,
+  ChevronLeft,
+  ChevronRight,
+  PackageSearch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetFooter,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { useDebounce } from "@/lib/useDebounce";
 import { useCartWithSession } from "@/lib/cartStore";
 import useWishlistStore from "@/lib/wishlistStore";
-
 import MergedProductCard from "@/components/productCard/MargedProductCard";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   SKELETON
+───────────────────────────────────────────────────────────────────────────── */
 const ProductSkeleton = ({ viewMode }) => (
   <div
-    className={`rounded-2xl overflow-hidden shadow-lg border-gray-100 animate-pulse ${
+    className={cn(
+      "rounded-2xl overflow-hidden animate-pulse bg-white border border-border shadow-sm",
       viewMode === "list"
-        ? "flex flex-col sm:flex-row items-center p-4"
-        : "flex flex-col"
-    }`}
+        ? "flex flex-row items-center p-4 gap-5"
+        : "flex flex-col",
+    )}
   >
     <div
-      className={`bg-gray-200 ${
+      className={cn(
+        "bg-muted",
         viewMode === "list"
-          ? "w-full sm:w-32 h-48 sm:h-32 mb-4 sm:mb-0 sm:mr-4 flex-shrink-0 rounded-lg"
-          : "w-full h-48"
-      }`}
+          ? "w-32 h-32 rounded-xl flex-shrink-0"
+          : "w-full h-52",
+      )}
     />
-    <div
-      className={`p-4 ${
-        viewMode === "list"
-          ? "flex-1 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto] sm:gap-4"
-          : "flex-1"
-      }`}
-    >
-      <div className={viewMode === "list" ? "col-span-2 sm:col-span-1" : ""}>
-        <div className="h-6 bg-gray-200 rounded-md w-3/4 mb-2" />
-        <div className="h-4 bg-gray-200 rounded-md w-1/2 mb-1" />
-        <div className="h-4 bg-gray-200 rounded-md w-1/3 mt-2" />
-      </div>
-      <div
-        className={`mt-2 ${
-          viewMode === "list" ? "flex flex-col items-start sm:items-end" : ""
-        }`}
-      >
-        <div className="h-6 bg-gray-200 rounded-md w-1/4 mb-2" />
-        <div className="h-4 bg-gray-200 rounded-md w-1/3" />
-        <div className="h-10 bg-gray-200 rounded-lg w-full mt-4" />
-      </div>
+    <div className={cn("flex-1 space-y-3", viewMode === "list" ? "" : "p-4")}>
+      <div className="h-4 bg-muted rounded-md w-3/5" />
+      <div className="h-3 bg-muted rounded-md w-2/5" />
+      <div className="h-3 bg-muted rounded-md w-1/4" />
+      <div className="h-10 bg-muted rounded-xl w-full mt-3" />
     </div>
   </div>
 );
 
-const FilterSidebar = ({
+/* ─────────────────────────────────────────────────────────────────────────────
+   STAR DISPLAY
+───────────────────────────────────────────────────────────────────────────── */
+const StarRow = ({ count }) => (
+  <div className="flex items-center gap-0.5">
+    {Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={cn(
+          "h-3.5 w-3.5",
+          i < count
+            ? "fill-amber-400 text-amber-400"
+            : "fill-muted text-muted-foreground/30",
+        )}
+      />
+    ))}
+  </div>
+);
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FILTER PANEL (shared between sidebar + bottom sheet)
+───────────────────────────────────────────────────────────────────────────── */
+const FilterPanel = ({
   displayPriceRange,
   handlePriceRangeChange,
   minRating,
@@ -76,94 +102,151 @@ const FilterSidebar = ({
   categories,
   selectedCategories,
   handleCategoryToggle,
-}) => (
-  <div className="p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-    <h2 className="text-xl font-bold mb-4 text-gray-800">Filter by Price</h2>
-    <div className="space-y-4">
-      <Slider
-        defaultValue={displayPriceRange}
-        max={10000}
-        step={10}
-        onValueChange={handlePriceRangeChange}
-        // Theme color usage: bg-primary
-        className="[&_[data-radix-slider-track]]:bg-gray-200 [&_[data-radix-slider-range]]:bg-primary [&_[data-radix-slider-thumb]]:bg-primary"
-      />
-      <div className="flex justify-between items-center text-gray-600 text-sm">
-        {/* Currency change */}
-        <span>Tk {displayPriceRange[0]}</span>
-        <span>Tk {displayPriceRange[1]}</span>
-      </div>
-    </div>
+  onClearFilters,
+}) => {
+  const activeCount = selectedCategories.length + (minRating > 0 ? 1 : 0);
 
-    <hr className="my-6 border-gray-200" />
-
-    <h2 className="text-xl font-bold mb-4 text-gray-800">Filter by Rating</h2>
-    <div className="space-y-2">
-      {[5, 4, 3, 2, 1].map((rating) => (
-        <div key={rating} className="flex items-center">
-          <input
-            type="radio"
-            id={`rating-${rating}`}
-            name="rating-filter"
-            checked={minRating === rating}
-            onChange={() => setMinRating(rating)}
-            // Theme color usage
-            className="h-4 w-4 text-primary rounded-full border-gray-300 focus:ring-primary"
-          />
-          <Label
-            htmlFor={`rating-${rating}`}
-            className="ml-2 flex items-center text-gray-700 cursor-pointer"
-          >
-            {Array.from({ length: 5 }, (_, i) => (
-              <svg
-                key={i}
-                className={`h-4 w-4 ${
-                  i < rating ? "text-yellow-500 fill-current" : "text-gray-300"
-                }`}
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-              </svg>
-            ))}
-            <span className="ml-2">{rating} Stars & Up</span>
-          </Label>
+  return (
+    <div className="flex flex-col gap-6 h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-primary" />
+          <span className="font-semibold text-sm text-foreground">Filters</span>
+          {activeCount > 0 && (
+            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+              {activeCount}
+            </span>
+          )}
         </div>
-      ))}
-    </div>
-
-    <hr className="my-6 border-gray-200" />
-
-    <h2 className="text-xl font-bold mb-4 text-gray-800">Categories</h2>
-    <ul className="space-y-2">
-      {categories.map((category) => (
-        <li key={category.id} className="flex items-center">
-          <input
-            type="checkbox"
-            id={category.id}
-            checked={selectedCategories.includes(category.id)}
-            onChange={() => handleCategoryToggle(category.id)}
-            // Theme color usage
-            className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
-          />
-          <Label
-            htmlFor={category.id}
-            className="ml-2 text-gray-700 cursor-pointer"
+        {activeCount > 0 && (
+          <button
+            onClick={onClearFilters}
+            className="text-xs text-muted-foreground hover:text-primary transition-colors"
           >
-            {category.name}
-          </Label>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+            Reset all
+          </button>
+        )}
+      </div>
 
+      <Separator />
+
+      {/* Price Range */}
+      <div className="space-y-4">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
+          Price Range
+        </p>
+        <Slider
+          value={displayPriceRange}
+          max={10000}
+          step={10}
+          onValueChange={handlePriceRangeChange}
+          className="[&_[role=slider]]:border-2 [&_[role=slider]]:border-primary [&_[role=slider]]:shadow-md [&_[role=slider]]:bg-background [&_.bg-primary]:bg-primary"
+        />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
+            ৳ {displayPriceRange[0].toLocaleString()}
+          </span>
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
+            ৳ {displayPriceRange[1].toLocaleString()}
+          </span>
+        </div>
+      </div>
+      {/* Categories */}
+      <div className="space-y-3 flex-1 overflow-y-auto">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
+          Categories
+        </p>
+        <div className="space-y-1.5">
+          {categories.map((cat) => (
+            <div
+              key={cat.id}
+              onClick={() => handleCategoryToggle(cat.id)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
+                selectedCategories.includes(cat.id)
+                  ? "bg-primary/10 border border-primary/20"
+                  : "hover:bg-muted/60",
+              )}
+            >
+              <Checkbox
+                id={`cat-${cat.id}`}
+                checked={selectedCategories.includes(cat.id)}
+                onCheckedChange={() => handleCategoryToggle(cat.id)}
+                className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              />
+              <Label
+                htmlFor={`cat-${cat.id}`}
+                className="cursor-pointer text-sm text-foreground flex-1 leading-none select-none"
+              >
+                {cat.name}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Separator />
+
+      {/* Rating */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
+          Minimum Rating
+        </p>
+        <RadioGroup
+          value={String(minRating)}
+          onValueChange={(v) => setMinRating(Number(v))}
+          className="space-y-1.5"
+        >
+          {[0, 1, 2, 3, 4, 5].map((r) => (
+            <div
+              key={r}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors",
+                minRating === r
+                  ? "bg-primary/10 border border-primary/20"
+                  : "hover:bg-muted/60",
+              )}
+              onClick={() => setMinRating(r)}
+            >
+              <RadioGroupItem
+                value={String(r)}
+                id={`rating-${r}`}
+                className="border-primary text-primary"
+              />
+              <Label
+                htmlFor={`rating-${r}`}
+                className="cursor-pointer flex items-center gap-2 flex-1"
+              >
+                {r === 0 ? (
+                  <span className="text-sm text-muted-foreground">
+                    All ratings
+                  </span>
+                ) : (
+                  <>
+                    <StarRow count={r} />
+                    <span className="text-xs text-muted-foreground">& up</span>
+                  </>
+                )}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      </div>
+
+      <Separator />
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN PAGE
+───────────────────────────────────────────────────────────────────────────── */
 export default function AllProducts() {
   const searchParams = useSearchParams();
 
   const [displayPriceRange, setDisplayPriceRange] = useState([0, 10000]);
   const debouncedPriceRange = useDebounce(displayPriceRange, 300);
-
   const [minRating, setMinRating] = useState(0);
   const [categories, setCategories] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -178,9 +261,8 @@ export default function AllProducts() {
   const [selections, setSelections] = useState({});
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const { addToCart, cartItems, updateCartItemQuantity } = useCartWithSession();
+  const { addToCart } = useCartWithSession();
   const { wishlist, fetchWishlist, toggleWishlist } = useWishlistStore();
-
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const handlePriceRangeChange = useCallback((value) => {
@@ -195,87 +277,65 @@ export default function AllProducts() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch("/api/admin/categories");
-        if (!response.ok) throw new Error("Failed to fetch categories");
-        const data = await response.json();
+        const res = await fetch("/api/admin/categories");
+        if (!res.ok) throw new Error();
+        const data = await res.json();
         setCategories(data.categories);
-
         if (!hasInitialized) {
           const urlCategoryId = searchParams.get("categoryId");
           if (
             urlCategoryId &&
-            data.categories.some((cat) => cat.id === urlCategoryId)
-          ) {
+            data.categories.some((c) => c.id === urlCategoryId)
+          )
             setSelectedCategories([urlCategoryId]);
-          }
-          setDisplayPriceRange([0, 10000]);
           setHasInitialized(true);
         }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
+      } catch (e) {
+        console.error(e);
       }
     }
     fetchCategories();
   }, [searchParams, hasInitialized]);
 
   useEffect(() => {
+    if (!hasInitialized) return;
     const fetchProducts = async () => {
       setLoading(true);
-
-      const [minPrice, maxPrice] = debouncedPriceRange;
-
       const params = new URLSearchParams({
         search: debouncedSearchQuery,
-        minPrice,
-        maxPrice,
+        minPrice: debouncedPriceRange[0],
+        maxPrice: debouncedPriceRange[1],
         minRating,
         page: currentPage,
         sortBy: sortOption,
       });
-
-      // This is the correct client-side way to pass multiple IDs
-      selectedCategories.forEach((catId) => params.append("categoryId", catId));
-
+      selectedCategories.forEach((id) => params.append("categoryId", id));
       try {
-        const response = await fetch(
-          `/api/admin/product?${params.toString()}&isActive=true`
-        );
-        const data = await response.json();
-
-        if (response.ok) {
+        const res = await fetch(`/api/admin/product?${params}&isActive=true`);
+        const data = await res.json();
+        if (res.ok) {
           setProducts(data.products);
           setTotalProducts(data.total);
           setTotalPages(data.totalPages);
-
           setSelections((prev) => {
-            const newSelections = { ...prev };
-            data.products.forEach((product) => {
-              if (!newSelections[product.id]) {
-                newSelections[product.id] = {
-                  selectedSize: product.availableSizes
-                    ? product.availableSizes.split(",")[0]
-                    : null,
-                  selectedColor: product.availableColors
-                    ? product.availableColors.split(",")[0]
-                    : null,
+            const next = { ...prev };
+            data.products.forEach((p) => {
+              if (!next[p.id])
+                next[p.id] = {
+                  selectedSize: p.availableSizes?.split(",")[0] ?? null,
+                  selectedColor: p.availableColors?.split(",")[0] ?? null,
                 };
-              }
             });
-            return newSelections;
+            return next;
           });
-        } else {
-          setProducts([]);
-        }
-      } catch (error) {
+        } else setProducts([]);
+      } catch {
         setProducts([]);
       } finally {
         setLoading(false);
       }
     };
-
-    if (hasInitialized) {
-      fetchProducts();
-    }
+    fetchProducts();
   }, [
     debouncedSearchQuery,
     debouncedPriceRange,
@@ -286,11 +346,9 @@ export default function AllProducts() {
     hasInitialized,
   ]);
 
-  const handleCategoryToggle = (categoryId) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((c) => c !== categoryId)
-        : [...prev, categoryId]
+  const handleCategoryToggle = (id) => {
+    setSelectedCategories((p) =>
+      p.includes(id) ? p.filter((c) => c !== id) : [...p, id],
     );
     setCurrentPage(1);
   };
@@ -303,341 +361,399 @@ export default function AllProducts() {
     setCurrentPage(1);
   };
 
-  const handleSelectionChange = (productId, field, value) => {
-    setSelections((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [field]: value,
-      },
+  const handleSelectionChange = (productId, field, value) =>
+    setSelections((p) => ({
+      ...p,
+      [productId]: { ...p[productId], [field]: value },
     }));
-  };
 
   const currentCategoryNames = useMemo(
     () =>
       categories
-        .filter((cat) => selectedCategories.includes(cat.id))
-        .map((cat) => cat.name),
-    [categories, selectedCategories]
+        .filter((c) => selectedCategories.includes(c.id))
+        .map((c) => c.name),
+    [categories, selectedCategories],
   );
 
+  const activeFilterCount =
+    currentCategoryNames.length +
+    (minRating > 0 ? 1 : 0) +
+    (searchQuery ? 1 : 0);
+
+  /* ── Pagination ── */
   const renderPagination = () => {
     if (totalPages <= 1) return null;
-
-    const pageNumbers = [];
-    for (let i = 1; i <= totalPages; i++) {
-      pageNumbers.push(i);
-    }
-
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+    const visible = pages.filter(
+      (p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1,
+    );
     return (
-      <div className="flex justify-center items-center space-x-2 mt-8">
+      <div className="flex justify-center items-center gap-1.5 mt-10 flex-wrap">
         <Button
-          onClick={() => setCurrentPage(currentPage - 1)}
+          variant="outline"
+          size="icon"
+          onClick={() => setCurrentPage((p) => p - 1)}
           disabled={currentPage === 1}
-          variant="outline"
-          className="rounded-full"
+          className="h-9 w-9 rounded-xl border-border hover:border-primary hover:text-primary disabled:opacity-40"
         >
-          Previous
+          <ChevronLeft className="h-4 w-4" />
         </Button>
-        {pageNumbers.map((number) => (
-          <Button
-            key={number}
-            onClick={() => setCurrentPage(number)}
-            variant={currentPage === number ? "default" : "outline"}
-            className={`rounded-full ${
-              currentPage === number
-                ? "bg-primary text-white hover:bg-primary"
-                : "border-gray-300"
-            }`}
-          >
-            {number}
-          </Button>
-        ))}
+        {visible.map((p, idx) => {
+          const prev = visible[idx - 1];
+          return (
+            <span key={p} className="flex items-center gap-1.5">
+              {prev && p - prev > 1 && (
+                <span className="text-muted-foreground text-sm px-1">…</span>
+              )}
+              <Button
+                variant={currentPage === p ? "default" : "outline"}
+                size="icon"
+                onClick={() => setCurrentPage(p)}
+                className={cn(
+                  "h-9 w-9 rounded-xl text-sm font-medium transition-all",
+                  currentPage === p
+                    ? "bg-primary text-primary-foreground shadow-md scale-105"
+                    : "border-border hover:border-primary hover:text-primary",
+                )}
+              >
+                {p}
+              </Button>
+            </span>
+          );
+        })}
         <Button
-          onClick={() => setCurrentPage(currentPage + 1)}
-          disabled={currentPage === totalPages}
           variant="outline"
-          className="rounded-full"
+          size="icon"
+          onClick={() => setCurrentPage((p) => p + 1)}
+          disabled={currentPage === totalPages}
+          className="h-9 w-9 rounded-xl border-border hover:border-primary hover:text-primary disabled:opacity-40"
         >
-          Next
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     );
   };
 
+  /* ── RENDER ── */
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-12 font-sans bg-gray-50 min-h-screen text-gray-900">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-            Comprehensive Product Catalog
+    <div className="min-h-screen bg-muted/30">
+      {/* ── Hero Banner ── */}
+      <div className=" relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 70% 50%, white 0%, transparent 60%)",
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10 relative z-10">
+          <p className=" text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5">
+            Our Store
+          </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight ">
+            Product Catalog
           </h1>
-          <p className="mt-2 text-lg text-gray-600">
-            Explore a curated selection of products with advanced filtering and
-            sorting capabilities.
+          <p className="mt-2  text-sm max-w-md leading-relaxed">
+            Explore our full collection — filter, sort, and discover exactly
+            what you need.
           </p>
         </div>
+      </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="lg:w-1/4 hidden lg:block">
-            <FilterSidebar
-              displayPriceRange={displayPriceRange}
-              handlePriceRangeChange={handlePriceRangeChange}
-              minRating={minRating}
-              setMinRating={setMinRating}
-              categories={categories}
-              selectedCategories={selectedCategories}
-              handleCategoryToggle={handleCategoryToggle}
-            />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8">
+        <div className="flex flex-col lg:flex-row gap-7">
+          {/* ── Desktop Sidebar ── */}
+          <aside className="hidden lg:block w-64 flex-shrink-0">
+            <div className="sticky top-6 bg-white rounded-2xl border border-border shadow-sm p-6 min-h-[60vh]">
+              <FilterPanel
+                displayPriceRange={displayPriceRange}
+                handlePriceRangeChange={handlePriceRangeChange}
+                minRating={minRating}
+                setMinRating={(v) => {
+                  setMinRating(v);
+                  setCurrentPage(1);
+                }}
+                categories={categories}
+                selectedCategories={selectedCategories}
+                handleCategoryToggle={handleCategoryToggle}
+                onClearFilters={handleClearFilters}
+              />
+            </div>
           </aside>
 
-          <div className="lg:w-3/4">
-            <div className="lg:hidden flex justify-end mb-4">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex items-center space-x-2 border-gray-300"
-                  >
-                    <Filter className="h-4 w-4 text-gray-700" />
-                    <span className="text-gray-700">Filter</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  side="left"
-                  className="w-full sm:max-w-xs p-0 flex flex-col"
-                >
-                  <SheetHeader className="p-4 border-b border-gray-200">
-                    <SheetTitle className="text-xl font-semibold">
-                      Product Filters
-                    </SheetTitle>
-                  </SheetHeader>
-                  <div className="mt-0 p-4 overflow-y-auto h-full">
-                    <FilterSidebar
-                      displayPriceRange={displayPriceRange}
-                      handlePriceRangeChange={handlePriceRangeChange}
-                      minRating={minRating}
-                      setMinRating={setMinRating}
-                      categories={categories}
-                      selectedCategories={selectedCategories}
-                      handleCategoryToggle={handleCategoryToggle}
-                    />
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
-              <div className="relative flex-1 w-full sm:w-auto mb-4 sm:mb-0 sm:mr-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          {/* ── Main Content ── */}
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* ── Toolbar ── */}
+            <div className="bg-white rounded-2xl border border-border shadow-sm px-4 py-3 flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
-                  placeholder="Search products..."
+                  placeholder="Search products…"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-10 pr-4 py-2 w-full border-gray-300 rounded-lg focus-visible:ring-primary"
+                  className="pl-9 pr-9 h-10 rounded-xl border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary bg-muted/40 text-sm"
                 />
-              </div>
-              <div className="flex flex-wrap items-center space-x-4">
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <Label htmlFor="sort-select">Sort by</Label>
-                  <select
-                    id="sort-select"
-                    value={sortOption}
-                    onChange={(e) => {
-                      setSortOption(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="border border-gray-300 rounded-md p-1 pr-6 focus:ring-primary focus:border-primary"
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <option value="newest">Newest Arrivals</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
-                  </select>
-                </div>
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <Label>View</Label>
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Mobile Filter */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="lg:hidden h-10 rounded-xl border-border gap-2 text-sm font-medium hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Filter className="h-4 w-4" />
+                    Filters
+                    {activeFilterCount > 0 && (
+                      <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-80 flex flex-col p-0 gap-0"
+                >
+                  <SheetHeader className="p-5 border-b border-border">
+                    <SheetTitle className="text-base font-bold">
+                      Filters
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto p-5">
+                    <FilterPanel
+                      displayPriceRange={displayPriceRange}
+                      handlePriceRangeChange={handlePriceRangeChange}
+                      minRating={minRating}
+                      setMinRating={(v) => {
+                        setMinRating(v);
+                        setCurrentPage(1);
+                      }}
+                      categories={categories}
+                      selectedCategories={selectedCategories}
+                      handleCategoryToggle={handleCategoryToggle}
+                      onClearFilters={handleClearFilters}
+                    />
+                  </div>
+                  <SheetFooter className="p-5 border-t border-border">
+                    <Button
+                      onClick={handleClearFilters}
+                      variant="outline"
+                      className="w-full rounded-xl h-10 border-border hover:border-destructive hover:text-destructive"
+                    >
+                      Reset All Filters
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+
+              <div className="flex items-center gap-2 ml-auto">
+                {/* Sort */}
+                <Select
+                  value={sortOption}
+                  onValueChange={(v) => {
+                    setSortOption(v);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-10 w-48 rounded-xl border-border text-sm focus:ring-1 focus:ring-primary">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border shadow-lg">
+                    <SelectItem value="newest">Newest Arrivals</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="price-asc">Price: Low → High</SelectItem>
+                    <SelectItem value="price-desc">
+                      Price: High → Low
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* View Toggle */}
+                <div className="flex items-center bg-muted/60 rounded-xl p-1 gap-0.5 border border-border">
                   <Button
                     size="icon"
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    className={
-                      viewMode === "grid"
-                        ? ""
-                        : "text-gray-500 hover:text-primary"
-                    }
+                    variant="ghost"
                     onClick={() => setViewMode("grid")}
+                    className={cn(
+                      "h-8 w-8 rounded-lg transition-all",
+                      viewMode === "grid"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-transparent",
+                    )}
                   >
-                    <LayoutGrid className="h-5 w-5" />
+                    <LayoutGrid className="h-4 w-4" />
                   </Button>
                   <Button
                     size="icon"
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    className={
-                      viewMode === "list"
-                        ? ""
-                        : "text-gray-500 hover:text-primary"
-                    }
+                    variant="ghost"
                     onClick={() => setViewMode("list")}
+                    className={cn(
+                      "h-8 w-8 rounded-lg transition-all",
+                      viewMode === "list"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-transparent",
+                    )}
                   >
-                    <List className="h-5 w-5" />
+                    <List className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </div>
 
+            {/* ── Active Filter Chips ── */}
             {(currentCategoryNames.length > 0 ||
-              searchQuery ||
-              minRating > 0) && (
-              <div className="flex items-center flex-wrap gap-2 mb-4">
-                <span className="text-gray-700 font-semibold">
-                  Active Filters:
+              minRating > 0 ||
+              searchQuery) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground font-medium">
+                  Active filters:
                 </span>
-                {currentCategoryNames.map((catName) => (
+                {currentCategoryNames.map((name) => (
                   <Badge
-                    key={catName}
-                    variant="secondary"
-                    // Theme color usage
-                    className="bg-primary/10 text-primary rounded-full py-1 px-3"
+                    key={name}
+                    className="bg-primary/10 text-primary border border-primary/25 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-primary/20 cursor-pointer transition-colors select-none"
+                    onClick={() =>
+                      handleCategoryToggle(
+                        categories.find((c) => c.name === name)?.id,
+                      )
+                    }
                   >
-                    {catName}
-                    <Button
-                      onClick={() =>
-                        handleCategoryToggle(
-                          categories.find((c) => c.name === catName)?.id
-                        )
-                      }
-                      variant="ghost"
-                      size="icon"
-                      // Theme color usage
-                      className="h-4 w-4 ml-2 text-primary rounded-full hover:bg-primary/20"
-                    >
-                      <XCircle className="h-3 w-3" />
-                    </Button>
+                    {name}
+                    <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 ))}
                 {minRating > 0 && (
                   <Badge
-                    variant="secondary"
-                    className="bg-yellow-100 text-yellow-700 rounded-full py-1 px-3"
+                    className="bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-amber-100 cursor-pointer transition-colors select-none"
+                    onClick={() => setMinRating(0)}
                   >
-                    {minRating} Stars & Up
-                    <Button
-                      onClick={() => setMinRating(0)}
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 ml-2 text-yellow-700 rounded-full hover:bg-yellow-200"
-                    >
-                      <XCircle className="h-3 w-3" />
-                    </Button>
+                    {minRating}★ & up
+                    <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 )}
                 {searchQuery && (
                   <Badge
-                    variant="secondary"
-                    className="bg-blue-100 text-blue-700 rounded-full py-1 px-3"
+                    className="bg-sky-50 text-sky-700 border border-sky-200 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-sky-100 cursor-pointer transition-colors select-none"
+                    onClick={() => setSearchQuery("")}
                   >
-                    Search: "{searchQuery}"
-                    <Button
-                      onClick={() => setSearchQuery("")}
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 ml-2 text-blue-700 rounded-full hover:bg-blue-200"
-                    >
-                      <XCircle className="h-3 w-3" />
-                    </Button>
+                    "{searchQuery}"
+                    <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 )}
-                <Button
+                <button
                   onClick={handleClearFilters}
-                  variant="link"
-                  // Theme color usage
-                  className="text-primary hover:text-primary/80 transition-colors p-0 h-auto font-medium"
+                  className="text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2 ml-1"
                 >
-                  Clear All
-                </Button>
+                  Clear all
+                </button>
               </div>
             )}
 
+            {/* ── Results Count ── */}
+            {!loading && products.length > 0 && (
+              <p className="text-xs text-muted-foreground font-medium">
+                Showing{" "}
+                <span className="text-foreground font-semibold">
+                  {(currentPage - 1) * products.length + 1}–
+                  {Math.min(currentPage * products.length, totalProducts)}
+                </span>{" "}
+                of{" "}
+                <span className="text-foreground font-semibold">
+                  {totalProducts}
+                </span>{" "}
+                products
+              </p>
+            )}
+
+            {/* ── Product Grid / Skeleton / Empty ── */}
             {loading ? (
               <div
-                className={`grid gap-6 ${
+                className={cn(
+                  "grid gap-5",
                   viewMode === "grid"
-                    ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                    : "grid-cols-1"
-                }`}
+                    ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                    : "grid-cols-1",
+                )}
               >
-                {Array.from({ length: 8 }).map((_, i) => (
+                {Array.from({ length: 9 }).map((_, i) => (
                   <ProductSkeleton key={i} viewMode={viewMode} />
                 ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-gray-200 text-center">
-                <SearchX className="h-24 w-24 text-gray-400 mb-6" />
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-border shadow-sm text-center px-6">
+                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+                  <PackageSearch className="h-10 w-10 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground mb-2">
                   No Products Found
                 </h2>
-                <p className="text-gray-600 mb-6">
-                  Your current filters or search criteria did not match any
-                  products.
+                <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
+                  Try adjusting your filters or search query to find what you're
+                  looking for.
                 </p>
                 <Button
                   onClick={handleClearFilters}
-                  // Theme color usage
-                  className="bg-primary hover:bg-primary/80 text-white font-medium rounded-lg"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6 h-10 shadow-sm font-medium"
                 >
                   Reset Filters
                 </Button>
               </div>
             ) : (
-              <>
-                <p className="text-sm text-gray-600 mb-4 font-medium">
-                  Showing {products.length} of {totalProducts} products
-                </p>
-                <div
-                  className={`grid gap-6 ${
-                    viewMode === "grid"
-                      ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-                      : "grid-cols-1"
-                  }`}
-                >
-                  {products.map((product) => (
-                    <MergedProductCard
-                      key={product.id}
-                      product={product}
-                      selections={selections[product.id]}
-                      onSelectionChange={(field, value) =>
-                        handleSelectionChange(product.id, field, value)
-                      }
-                      isWishlisted={wishlist.some(
-                        (item) => item.productId === product.id
-                      )}
-                      onToggleWishlist={() => toggleWishlist(product.id)}
-                      onAddToCart={(quantity = 1) =>
-                        addToCart(
-                          {
-                            id: product.id,
-                            name: product.name,
-                            price: product.price,
-                            imageUrl: product.imageUrls
-                              ? product.imageUrls.split(",")[0]
-                              : null,
-                            size: selections[product.id]?.selectedSize,
-                            color: selections[product.id]?.selectedColor,
-                          },
-                          quantity
-                        )
-                      }
-                      tags="NEW"
-                      buttonText="Add to Cart"
-                      viewMode={viewMode}
-                    />
-                  ))}
-                </div>
-              </>
+              <div
+                className={cn(
+                  "grid gap-5",
+                  viewMode === "grid"
+                    ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                    : "grid-cols-1",
+                )}
+              >
+                {products.map((product) => (
+                  <MergedProductCard
+                    key={product.id}
+                    product={product}
+                    selections={selections[product.id]}
+                    onSelectionChange={(field, value) =>
+                      handleSelectionChange(product.id, field, value)
+                    }
+                    isWishlisted={wishlist.some(
+                      (item) => item.productId === product.id,
+                    )}
+                    onToggleWishlist={() => toggleWishlist(product.id)}
+                    onAddToCart={(quantity = 1) =>
+                      addToCart(
+                        {
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                          imageUrl: product.imageUrls?.split(",")[0] ?? null,
+                          size: selections[product.id]?.selectedSize,
+                          color: selections[product.id]?.selectedColor,
+                        },
+                        quantity,
+                      )
+                    }
+                    tags="NEW"
+                    buttonText="Add to Cart"
+                    viewMode={viewMode}
+                  />
+                ))}
+              </div>
             )}
+
+            {/* ── Pagination ── */}
             {renderPagination()}
           </div>
         </div>
