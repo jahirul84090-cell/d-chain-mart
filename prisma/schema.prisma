@@ -37,6 +37,7 @@ model User {
   otpCode                 String?   @unique
   otpExpiresAt            DateTime?
   lastSessionInvalidation DateTime?
+   loanApplications LoanApplication[]
 }
 
 model Account {
@@ -196,6 +197,7 @@ model Product {
   oldPrice         Float          @default(0)
   discount         Float          @default(0)
   cartItems        CartItem[]
+   loanApplications LoanApplication[]
 
   @@index([categoryId])
 }
@@ -219,7 +221,7 @@ model Order {
   shippingAddress     Address     @relation(fields: [shippingAddressId], references: [id])
   items               OrderItem[]
   paymentMethod       PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
-
+ loanApplications LoanApplication[]
   @@index([userId])
   @@index([shippingAddressId])
   @@index([paymentMethodId])
@@ -302,4 +304,196 @@ model Media {
   title     String?  @db.VarChar(255)
   altText   String?  @db.VarChar(255)
   createdAt DateTime @default(now())
+}
+
+
+
+
+enum LoanStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  DOWN_PAYMENT_PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InstallmentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+  WAIVED
+}
+
+enum LoanDocumentType {
+  NID_FRONT
+  NID_BACK
+  SELFIE
+  SALARY_PROOF
+  BANK_STATEMENT
+  OTHER
+}
+
+enum LoanPaymentType {
+  DOWN_PAYMENT
+  INSTALLMENT
+  LATE_FEE
+  REFUND
+  OTHER
+}
+
+enum LoanPaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+model LoanApplication {
+  id                 String     @id @default(uuid())
+
+  userId             String
+  productId          String
+  orderId            String?    @unique
+
+  productPrice       Float
+  downPayment        Float
+  downPaymentPaid    Float      @default(0)
+
+  loanAmount         Float
+  interestRate       Float      @default(0)
+  tenureMonths       Int
+  monthlyEmi         Float
+  totalPayable       Float
+
+  firstEmiDelayDays  Int        @default(30)
+  gracePeriodDays    Int        @default(3)
+  lateFee            Float      @default(0)
+
+  status             LoanStatus @default(PENDING)
+
+  appliedAt          DateTime   @default(now())
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  loanStartDate      DateTime?
+  firstDueDate       DateTime?
+
+  nidNumber          String?
+  monthlyIncome      Float?
+  jobType            String?
+  customerNote       String?    @db.Text
+  adminNote          String?    @db.Text
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  user               User       @relation(fields: [userId], references: [id])
+  product            Product    @relation(fields: [productId], references: [id])
+  order              Order?     @relation(fields: [orderId], references: [id])
+
+  installments       InstallmentPayment[]
+  documents          LoanDocument[]
+  payments           LoanPayment[]
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@index([appliedAt])
+}
+
+model InstallmentPayment {
+  id                 String            @id @default(uuid())
+  loanApplicationId  String
+
+  installmentNo      Int
+  dueDate            DateTime
+  originalDueDate    DateTime?
+
+  amount             Float
+  paidAmount         Float             @default(0)
+  remainingAmount    Float             @default(0)
+  lateFee            Float             @default(0)
+
+  status             InstallmentStatus @default(UNPAID)
+
+  paidAt             DateTime?
+  note               String?           @db.Text
+
+  isDateChanged      Boolean           @default(false)
+  dateChangedReason  String?           @db.Text
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  loanApplication    LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  payments           LoanPayment[]
+
+  @@index([loanApplicationId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model LoanPayment {
+  id                 String            @id @default(uuid())
+
+  loanApplicationId  String
+  installmentId      String?
+
+  paymentType        LoanPaymentType
+  status             LoanPaymentStatus @default(PENDING)
+
+  amount             Float
+
+  paymentMethod      String?
+  transactionNumber  String?
+  referenceNumber    String?
+  receivedBy         String?
+
+  paidAt             DateTime?
+  note               String?           @db.Text
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  loanApplication    LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  installment        InstallmentPayment? @relation(fields: [installmentId], references: [id])
+
+  @@index([loanApplicationId])
+  @@index([installmentId])
+  @@index([paymentType])
+  @@index([status])
+  @@index([paidAt])
+}
+
+model LoanDocument {
+  id                 String           @id @default(uuid())
+  loanApplicationId  String
+  type               LoanDocumentType
+  url                String
+  title              String?
+  createdAt          DateTime         @default(now())
+
+  loanApplication    LoanApplication  @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+
+  @@index([loanApplicationId])
+}
+
+model LoanSetting {
+  id                 String   @id @default(uuid())
+
+  minDownPaymentPct  Float    @default(30)
+  defaultInterest    Float    @default(10)
+  defaultTenure      Int      @default(12)
+  firstEmiDelayDays  Int      @default(30)
+  gracePeriodDays    Int      @default(3)
+  lateFee            Float    @default(100)
+
+  isActive           Boolean  @default(true)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

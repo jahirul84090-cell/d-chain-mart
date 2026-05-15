@@ -15,6 +15,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import Image from "next/image";
 
 import {
   Sheet,
@@ -24,29 +25,52 @@ import {
   SheetTrigger,
   SheetTitle,
 } from "@/components/ui/sheet";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
 import { Button } from "@/components/ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 import { useSession } from "next-auth/react";
+
 import useWishlistStore from "@/lib/wishlistStore";
+
 import HeaderSearchComponent from "@/components/others/AutoCompleteSearch";
 
 import MobileBottomNav from "./header/MobileBottomNav";
 import DesktopActions from "./header/DesktopActions";
+
+const LOGO = {
+  src: "/logo.png",
+  alt: "D Chin Mart Logo",
+  width: 100,
+  height: 100,
+};
+
+const MOBILE_LOGO = {
+  width: 60,
+  height: 60,
+};
+
+const SCROLL_LOGO = {
+  width: 55,
+  height: 55,
+};
 
 const formatSlug = (name) => name.toLowerCase().replace(/\s/g, "-");
 
 export function useWishlistWithSession() {
   const { status } = useSession();
   const store = useWishlistStore();
+
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -54,6 +78,7 @@ export function useWishlistWithSession() {
       store.fetchWishlist();
       setInitialized(true);
     }
+
     if (status === "unauthenticated" && initialized) {
       setInitialized(false);
     }
@@ -76,13 +101,19 @@ const extendedLinks = [
 
 export default function EcommerceHeader() {
   const [activeTab, setActiveTab] = useState("menu");
+
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
   const [scrolled, setScrolled] = useState(false);
+
   const [categories, setCategories] = useState([]);
+
   const [loadingCategories, setLoadingCategories] = useState(true);
+
   const [categoryError, setCategoryError] = useState(null);
 
   const searchInputRef = useRef(null);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -91,9 +122,13 @@ export default function EcommerceHeader() {
         const response = await fetch("/api/admin/categories", {
           cache: "no-store",
         });
-        if (!response.ok)
+
+        if (!response.ok) {
           throw new Error(`Failed to fetch categories: ${response.statusText}`);
+        }
+
         const { categories: data } = await response.json();
+
         setCategories(
           data.map((item) => ({
             id: item.id,
@@ -101,6 +136,7 @@ export default function EcommerceHeader() {
             slug: item.slug || formatSlug(item.name),
           })),
         );
+
         setCategoryError(null);
       } catch (error) {
         setCategoryError("Failed to load categories.");
@@ -109,40 +145,57 @@ export default function EcommerceHeader() {
         setLoadingCategories(false);
       }
     }
+
     fetchCategories();
   }, []);
 
   useEffect(() => {
     const COLLAPSE_AT = 96;
     const EXPAND_AT = 10;
+
     let lastY = window.scrollY;
 
     const handleScroll = () => {
       const y = window.scrollY;
+
       const goingDown = y > lastY;
+
       lastY = y;
-      if (goingDown && y > COLLAPSE_AT) setScrolled(true);
-      else if (!goingDown && y < EXPAND_AT) setScrolled(false);
+
+      if (goingDown && y > COLLAPSE_AT) {
+        setScrolled(true);
+      } else if (!goingDown && y < EXPAND_AT) {
+        setScrolled(false);
+      }
     };
 
     setScrolled(window.scrollY > COLLAPSE_AT);
-    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
     if (mobileSearchOpen && searchInputRef.current) {
       const inputElement = searchInputRef.current.querySelector("input");
-      if (inputElement) setTimeout(() => inputElement.focus(), 50);
+
+      if (inputElement) {
+        setTimeout(() => inputElement.focus(), 50);
+      }
     }
   }, [mobileSearchOpen]);
 
   const handleNavigation = (href) => router.push(href);
+
   const closeMobileSearch = () => setMobileSearchOpen(false);
 
   const categoryContent = loadingCategories ? (
     <div className="flex justify-center items-center py-6 gap-2 text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
+
       <span className="text-sm">Loading…</span>
     </div>
   ) : categoryError ? (
@@ -179,11 +232,9 @@ export default function EcommerceHeader() {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════
-          DESKTOP HEADER
-      ═══════════════════════════════════════════════ */}
+      {/* DESKTOP HEADER */}
       <header className="hidden md:block w-full sticky top-0 z-[100]">
-        {/* ── Top utility bar ── */}
+        {/* TOP BAR */}
         <div
           className={`
             w-full bg-primary text-secondary
@@ -201,15 +252,22 @@ export default function EcommerceHeader() {
           }}
         >
           <div className="flex items-center justify-between px-6 lg:px-10 max-w-7xl mx-auto">
-            {/* Logo */}
+            {/* LOGO */}
             <Link
               href="/"
-              className="text-3xl font-extrabold text-primary-foreground tracking-tight shrink-0 hover:opacity-85 transition-opacity drop-shadow-sm"
+              className="shrink-0 hover:opacity-85 transition-opacity"
             >
-              ShopEase
+              <Image
+                src={LOGO.src}
+                alt={LOGO.alt}
+                width={LOGO.width}
+                height={LOGO.height}
+                className="object-contain"
+                priority
+              />
             </Link>
 
-            {/* Search */}
+            {/* SEARCH */}
             <div className="flex-1 max-w-xl mx-8">
               <HeaderSearchComponent
                 placeholder="Search thousands of products…"
@@ -217,14 +275,14 @@ export default function EcommerceHeader() {
               />
             </div>
 
-            {/* Actions */}
+            {/* ACTIONS */}
             <div className="flex items-center gap-3 lg:gap-4 shrink-0">
               <DesktopActions />
             </div>
           </div>
         </div>
 
-        {/* ── Bottom nav bar ── */}
+        {/* BOTTOM NAVBAR */}
         <div
           className={`
             w-full bg-primary
@@ -238,20 +296,32 @@ export default function EcommerceHeader() {
           `}
         >
           <div className="flex items-center justify-between max-w-7xl mx-auto px-6 h-12">
-            {/* LEFT: logo (scroll-in) + categories */}
+            {/* LEFT */}
             <div className="flex items-center gap-0">
+              {/* SCROLL LOGO */}
               <Link
                 href="/"
                 className={`
-                  text-xl font-extrabold text-primary-foreground tracking-tight
-                  transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap
+                  transition-all duration-300 ease-in-out overflow-hidden
                   hover:opacity-85
-                  ${scrolled ? "max-w-[140px] opacity-100 mr-3" : "max-w-0 opacity-0 mr-0"}
+                  ${
+                    scrolled
+                      ? "max-w-[60px] opacity-100 mr-3"
+                      : "max-w-0 opacity-0 mr-0"
+                  }
                 `}
               >
-                ShopEase
+                <Image
+                  src={LOGO.src}
+                  alt={LOGO.alt}
+                  width={SCROLL_LOGO.width}
+                  height={SCROLL_LOGO.height}
+                  className="object-contain min-w-[42px]"
+                  priority
+                />
               </Link>
 
+              {/* CATEGORY DROPDOWN */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -275,6 +345,7 @@ export default function EcommerceHeader() {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent
                   className="w-56 mt-0 shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15),0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-border bg-card rounded-xl p-1.5"
                   align="start"
@@ -285,7 +356,7 @@ export default function EcommerceHeader() {
               </DropdownMenu>
             </div>
 
-            {/* CENTER: nav links */}
+            {/* CENTER NAV */}
             <nav>
               <ul className="flex gap-8 lg:gap-12 text-sm font-semibold text-primary-foreground">
                 {coreMenuLinks.map((link) => (
@@ -295,6 +366,7 @@ export default function EcommerceHeader() {
                       className="relative py-4 inline-block hover:text-primary-foreground/75 transition-colors duration-150 group"
                     >
                       {link.name}
+
                       <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-primary-foreground/70 transition-all duration-200 group-hover:w-full rounded-full" />
                     </Link>
                   </li>
@@ -302,7 +374,7 @@ export default function EcommerceHeader() {
               </ul>
             </nav>
 
-            {/* RIGHT: shipping badge */}
+            {/* SHIPPING */}
             <div className="hidden lg:flex items-center gap-1.5 bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground/90 backdrop-blur-sm">
               <Truck className="h-3.5 w-3.5 shrink-0" />
               Free Shipping Over $50
@@ -311,9 +383,7 @@ export default function EcommerceHeader() {
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════
-          MOBILE HEADER
-      ═══════════════════════════════════════════════ */}
+      {/* MOBILE HEADER */}
       <header
         className={`
           md:hidden w-full bg-primary sticky top-0 z-50
@@ -325,11 +395,10 @@ export default function EcommerceHeader() {
           }
         `}
       >
-        {/* Subtle inner top highlight line */}
         <div className="absolute inset-x-0 top-0 h-px bg-primary-foreground/15 pointer-events-none" />
 
         <div className="flex items-center justify-between px-4 py-3 max-w-7xl mx-auto">
-          {/* Left: hamburger + logo */}
+          {/* LEFT */}
           <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild>
@@ -347,10 +416,9 @@ export default function EcommerceHeader() {
                 side="left"
                 className="w-full max-w-sm p-0 bg-background shadow-2xl"
               >
-                {/* Sheet header with primary bg */}
                 <SheetHeader className="px-5 py-4 bg-primary">
                   <SheetTitle className="text-xl font-extrabold text-primary-foreground tracking-tight drop-shadow-sm">
-                    ShopEase
+                    D CHIN MART
                   </SheetTitle>
                 </SheetHeader>
 
@@ -362,19 +430,19 @@ export default function EcommerceHeader() {
                   <TabsList className="grid grid-cols-2 h-11 w-full rounded-none border-b border-border bg-muted/40 p-0">
                     <TabsTrigger
                       value="menu"
-                      className="rounded-none h-full font-semibold text-sm data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
+                      className="rounded-none h-full font-semibold text-sm"
                     >
                       Menu
                     </TabsTrigger>
+
                     <TabsTrigger
                       value="categories"
-                      className="rounded-none h-full font-semibold text-sm data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
+                      className="rounded-none h-full font-semibold text-sm"
                     >
                       Categories
                     </TabsTrigger>
                   </TabsList>
 
-                  {/* Menu tab */}
                   <TabsContent value="menu" className="mt-0 px-4 py-2">
                     <ul className="space-y-0.5 py-2">
                       {coreMenuLinks.map((link) => (
@@ -386,6 +454,7 @@ export default function EcommerceHeader() {
                             <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                               <Home className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                             </div>
+
                             {link.name}
                           </li>
                         </SheetClose>
@@ -404,6 +473,7 @@ export default function EcommerceHeader() {
                             <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                               <link.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                             </div>
+
                             {link.name}
                           </li>
                         </SheetClose>
@@ -418,11 +488,11 @@ export default function EcommerceHeader() {
                     </div>
                   </TabsContent>
 
-                  {/* Categories tab */}
                   <TabsContent value="categories" className="mt-0 px-4 py-3">
                     {loadingCategories ? (
                       <div className="flex justify-center items-center py-10 gap-2">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
+
                         <span className="text-sm text-muted-foreground font-medium">
                           Loading…
                         </span>
@@ -441,15 +511,23 @@ export default function EcommerceHeader() {
               </SheetContent>
             </Sheet>
 
+            {/* MOBILE LOGO */}
             <Link
               href="/"
-              className="text-xl font-extrabold text-primary-foreground tracking-tight hover:opacity-85 transition-opacity drop-shadow-sm"
+              className="shrink-0 hover:opacity-85 transition-opacity"
             >
-              ShopEase
+              <Image
+                src={LOGO.src}
+                alt={LOGO.alt}
+                width={MOBILE_LOGO.width}
+                height={MOBILE_LOGO.height}
+                className="object-contain"
+                priority
+              />
             </Link>
           </div>
 
-          {/* Right: search icon */}
+          {/* RIGHT */}
           <Button
             variant="ghost"
             size="icon"
@@ -462,9 +540,7 @@ export default function EcommerceHeader() {
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════
-          MOBILE SEARCH OVERLAY
-      ═══════════════════════════════════════════════ */}
+      {/* MOBILE SEARCH OVERLAY */}
       <div
         className={`
           fixed inset-0 z-[140] md:hidden
@@ -479,6 +555,7 @@ export default function EcommerceHeader() {
         aria-hidden="true"
       />
 
+      {/* MOBILE SEARCH */}
       <div
         className={`
           fixed top-0 left-0 right-0 z-[150] md:hidden
@@ -491,8 +568,8 @@ export default function EcommerceHeader() {
         aria-modal="true"
         aria-label="Search"
       >
-        {/* Inner highlight line */}
         <div className="absolute inset-x-0 top-0 h-px bg-primary-foreground/15 pointer-events-none" />
+
         <div className="flex items-center gap-2 px-4 py-3 max-w-4xl mx-auto">
           <div className="flex-1" ref={searchInputRef}>
             <HeaderSearchComponent
@@ -502,6 +579,7 @@ export default function EcommerceHeader() {
               onClose={closeMobileSearch}
             />
           </div>
+
           <Button
             variant="ghost"
             size="icon"
