@@ -26,7 +26,11 @@ const cleanText = (text = "") =>
 const getProductDetails = async (slug) => {
   const baseUrl = getSiteUrl();
   const apiUrl = `${baseUrl}/api/admin/product/slug/${encodeURIComponent(
+<<<<<<< HEAD
     slug,
+=======
+    slug
+>>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
   )}`;
 
   try {
@@ -94,8 +98,13 @@ export async function generateMetadata({ params }) {
         "online shopping",
         "ecommerce",
         "Bangladesh",
+<<<<<<< HEAD
       ].filter(Boolean),
     ),
+=======
+      ].filter(Boolean)
+    )
+>>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
   );
 
   const isIndexable = product?.isActive !== false;
@@ -233,7 +242,11 @@ const Page = async ({ params }) => {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
+<<<<<<< HEAD
       
+=======
+
+>>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
       <SingleProductDetail productData={productData} />
       <RelatedProducts productId={productData?.id} />
     </>
