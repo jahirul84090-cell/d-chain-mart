@@ -332,15 +332,15 @@ export default function SingleProductDetail({ productData }) {
                 <p className="text-[11px] text-gray-500">7 Days</p>
               </div>
             </div>
-<<<<<<< HEAD
+
             <Button asChild className="w-full">
               <Link href={`/loans/apply?slug=${productData.slug}`}>
                 Apply for EMI
               </Link>
             </Button>
-=======
 
->>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
+
+
             <div className="mt-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 p-4 border border-green-100">
               <p className="text-sm font-semibold text-gray-900">
                 Need help with this product?

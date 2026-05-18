@@ -4,17 +4,17 @@ import RelatedProducts from "@/components/others/RelatedProducts";
 
 export const dynamic = "force-dynamic";
 
-// ✅ Safe base url resolver (prevents "Invalid URL" / undefined issues)
+// ✅ Safe base url resolver
 const getSiteUrl = () => {
   const raw =
     process.env.BASE_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
     process.env.NEXT_PUBLIC_SITE_URL;
 
-  // Must be absolute for new URL()
-  if (raw && /^https?:\/\//i.test(raw)) return raw.replace(/\/+$/, "");
+  if (raw && /^https?:\/\//i.test(raw)) {
+    return raw.replace(/\/+$/, "");
+  }
 
-  // Fallback (won’t crash builds)
   return "https://example.com";
 };
 
@@ -25,12 +25,9 @@ const cleanText = (text = "") =>
 
 const getProductDetails = async (slug) => {
   const baseUrl = getSiteUrl();
+
   const apiUrl = `${baseUrl}/api/admin/product/slug/${encodeURIComponent(
-<<<<<<< HEAD
-    slug,
-=======
     slug
->>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
   )}`;
 
   try {
@@ -41,6 +38,7 @@ const getProductDetails = async (slug) => {
     if (!res.ok) return null;
 
     const data = await res.json();
+
     return data?.product || null;
   } catch (error) {
     console.log("getProductDetails error:", error);
@@ -64,10 +62,13 @@ export async function generateMetadata({ params }) {
       metadataBase,
       title: "Product Not Found",
       description: "The product you are looking for does not exist.",
-      robots: { index: false, follow: false },
-      alternates: { canonical },
-
-      // ✅ must be valid OG type
+      robots: {
+        index: false,
+        follow: false,
+      },
+      alternates: {
+        canonical,
+      },
       openGraph: {
         type: "website",
         url: canonical.toString(),
@@ -79,11 +80,15 @@ export async function generateMetadata({ params }) {
   }
 
   const title = product?.name || "Product";
+
   const description =
-    cleanText(product?.shortdescription) || `Buy ${title} online.`;
+    cleanText(product?.shortdescription) ||
+    `Buy ${title} online.`;
 
   const images = (
-    product?.images?.length ? product.images : [{ url: product?.mainImage }]
+    product?.images?.length
+      ? product.images
+      : [{ url: product?.mainImage }]
   )
     .map((img) => img?.url)
     .filter(Boolean);
@@ -98,23 +103,23 @@ export async function generateMetadata({ params }) {
         "online shopping",
         "ecommerce",
         "Bangladesh",
-<<<<<<< HEAD
-      ].filter(Boolean),
-    ),
-=======
       ].filter(Boolean)
     )
->>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
   );
 
   const isIndexable = product?.isActive !== false;
 
   return {
     metadataBase,
-    title: { default: title, template: `%s | ${siteName}` },
+    title: {
+      default: title,
+      template: `%s | ${siteName}`,
+    },
     description,
     keywords,
-    alternates: { canonical },
+    alternates: {
+      canonical,
+    },
 
     robots: {
       index: isIndexable,
@@ -128,14 +133,16 @@ export async function generateMetadata({ params }) {
       },
     },
 
-    // ✅ FIX: Next.js metadata does NOT accept type: "product"
     openGraph: {
-      type: "website", // ✅ allowed type
+      type: "website",
       url: canonical.toString(),
       siteName,
       title,
       description,
-      images: (images.length ? images : [`${baseUrl}/og-default.png`])
+      images: (images.length
+        ? images
+        : [`${baseUrl}/og-default.png`]
+      )
         .slice(0, 5)
         .map((url) => ({
           url,
@@ -158,9 +165,13 @@ const Page = async ({ params }) => {
   const { slug } = params;
 
   const productData = await getProductDetails(slug);
-  if (!productData) notFound();
+
+  if (!productData) {
+    notFound();
+  }
 
   const baseUrl = getSiteUrl();
+
   const productUrl = `${baseUrl}/product/${productData.slug}`;
 
   const images = (
@@ -173,13 +184,14 @@ const Page = async ({ params }) => {
 
   const inStock = (productData?.stockAmount ?? 0) > 0;
 
-  // ✅ Product JSON-LD (Google uses this for product rich results)
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": productUrl,
     name: productData?.name,
-    description: cleanText(productData?.shortdescription) || productData?.name,
+    description:
+      cleanText(productData?.shortdescription) ||
+      productData?.name,
     category: productData?.category?.name || "Product",
     image: images,
     sku: productData?.id,
@@ -196,7 +208,10 @@ const Page = async ({ params }) => {
     },
   };
 
-  if (productData?.averageRating && productData?.reviews?.length) {
+  if (
+    productData?.averageRating &&
+    productData?.reviews?.length
+  ) {
     productJsonLd.aggregateRating = {
       "@type": "AggregateRating",
       ratingValue: String(productData.averageRating),
@@ -204,17 +219,24 @@ const Page = async ({ params }) => {
     };
   }
 
-  // ✅ Breadcrumb JSON-LD
   const categoryName = productData?.category?.name;
+
   const categoryUrl = categoryName
-    ? `${baseUrl}/category/${encodeURIComponent(categoryName.toLowerCase())}`
+    ? `${baseUrl}/category/${encodeURIComponent(
+        categoryName.toLowerCase()
+      )}`
     : null;
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: baseUrl,
+      },
       categoryUrl
         ? {
             "@type": "ListItem",
@@ -236,17 +258,18 @@ const Page = async ({ params }) => {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(productJsonLd),
+        }}
       />
+
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd),
+        }}
       />
-<<<<<<< HEAD
-      
-=======
 
->>>>>>> 32c2020ccc18983ca8ff57281570246fbfd178bb
       <SingleProductDetail productData={productData} />
       <RelatedProducts productId={productData?.id} />
     </>
