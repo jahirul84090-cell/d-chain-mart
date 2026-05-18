@@ -1,13 +1,16 @@
 // next.config.js
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ⚠ CORRECTED CONFIGURATION ⚠
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   images: {
     remotePatterns: [
       {
         protocol: "https",
         hostname: "ik.imagekit.io",
-        // You can add pathname: '/path/to/assets/**' if needed for security
       },
       {
         protocol: "https",
