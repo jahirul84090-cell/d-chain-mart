@@ -4,8 +4,8 @@
  * Loan Application Wizard — Production Level
  *
  * Loan Plans:
- *   • 3-Month Plan — 10% annual interest (cheaper, faster payoff)
- *   • 6-Month Plan — 20% annual interest (lower monthly EMI, longer)
+ *   • 3-Month Plan — 10% flat interest on full product price
+ *   • 6-Month Plan — 20% flat interest on full product price
  *
  * Down Payment:
  *   Any positive amount strictly less than product price.
@@ -33,7 +33,6 @@ import { Textarea }  from "@/components/ui/textarea";
 import { Badge }     from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress }  from "@/components/ui/progress";
-import { Slider }    from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,8 +69,8 @@ const LOAN_PLANS = [
     textCls:     "text-emerald-600 dark:text-emerald-400",
     bgCls:       "bg-emerald-50 dark:bg-emerald-950/20",
     ringCls:     "ring-emerald-400 dark:ring-emerald-600",
-    description: "Pay off quickly with the lowest interest rate.",
-    pros:        ["Lowest 10% annual interest", "Debt-free in 3 months", "Minimal total cost"],
+    description: "Pay quickly with 10% flat interest on the product price.",
+    pros:        ["10% flat interest", "Interest on product price", "Debt-free in 3 months"],
   },
   {
     months:      6,
@@ -86,8 +85,8 @@ const LOAN_PLANS = [
     textCls:     "text-blue-600 dark:text-blue-400",
     bgCls:       "bg-blue-50 dark:bg-blue-950/20",
     ringCls:     "ring-blue-400 dark:ring-blue-600",
-    description: "Lower monthly payments spread over 6 months.",
-    pros:        ["Lower monthly EMI", "More breathing room", "6-month flexibility"],
+    description: "Lower monthly payments with 20% flat interest on the product price.",
+    pros:        ["20% flat interest", "Interest on product price", "6-month flexibility"],
   },
 ];
 
@@ -117,24 +116,39 @@ const fmt  = (n) => `৳${Number(n || 0).toLocaleString("en-BD", { maximumFracti
 const f2   = (n) => parseFloat(parseFloat(n).toFixed(2));
 const fmtBytes = (b) => b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(2)} MB`;
 
-function calcEmi(principal, annualPct, months) {
-  if (!principal || !months) return 0;
-  const mr = annualPct / 100 / 12;
-  if (mr === 0) return principal / months;
-  return (principal * mr * Math.pow(1 + mr, months)) / (Math.pow(1 + mr, months) - 1);
+function calcFlatLoan(productPrice, downPayment, interestPct, months) {
+  const price = Number(productPrice || 0);
+  const dp = Number(downPayment || 0);
+  const rate = Number(interestPct || 0);
+  const tenure = Number(months || 0);
+
+  if (!price || !tenure) {
+    return {
+      interestAmount: 0,
+      totalPayable: 0,
+      remainingPayable: 0,
+      monthlyEmi: 0,
+    };
+  }
+
+  const interestAmount = f2(price * (rate / 100));
+  const totalPayable = f2(price + interestAmount);
+  const remainingPayable = f2(Math.max(0, totalPayable - dp));
+  const monthlyEmi = f2(remainingPayable / tenure);
+
+  return {
+    interestAmount,
+    totalPayable,
+    remainingPayable,
+    monthlyEmi,
+  };
 }
 
-function buildSchedule(principal, annualPct, months, firstDueDate) {
-  const mr = annualPct / 100 / 12;
-  const emi = calcEmi(principal, annualPct, months);
-  let bal = principal;
+function buildSchedule(monthlyEmi, months, firstDueDate) {
   return Array.from({ length: months }, (_, i) => {
-    const interest = f2(bal * mr);
-    const princ    = f2(emi - interest);
-    bal = f2(Math.max(0, bal - princ));
     const d = new Date(firstDueDate);
     d.setMonth(d.getMonth() + i);
-    return { no: i + 1, date: d, emi: f2(emi), princ, interest, bal };
+    return { no: i + 1, date: d, emi: f2(monthlyEmi) };
   });
 }
 
@@ -209,7 +223,7 @@ function ScheduleTable({ rows }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-slate-50 dark:bg-slate-800/60">
-              {["#", "Due Date", "EMI", "Principal", "Interest", "Balance"].map((h) => (
+              {["#", "Due Date", "EMI"].map((h) => (
                 <th key={h} className="px-3 py-2.5 text-left font-semibold text-slate-500 whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -220,9 +234,6 @@ function ScheduleTable({ rows }) {
                 <td className="px-3 py-2.5 font-semibold text-slate-400">{r.no}</td>
                 <td className="px-3 py-2.5 font-medium whitespace-nowrap">{r.date.toLocaleDateString("en-BD", { day: "2-digit", month: "short", year: "numeric" })}</td>
                 <td className="px-3 py-2.5 font-bold text-blue-600 dark:text-blue-400">{fmt(Math.round(r.emi))}</td>
-                <td className="px-3 py-2.5 text-emerald-600 dark:text-emerald-400">{fmt(Math.round(r.princ))}</td>
-                <td className="px-3 py-2.5 text-amber-600 dark:text-amber-400">{fmt(Math.round(r.interest))}</td>
-                <td className="px-3 py-2.5 font-medium">{fmt(Math.round(r.bal))}</td>
               </tr>
             ))}
           </tbody>
@@ -390,9 +401,14 @@ export default function ApplyLoanPage() {
   const dp         = parseFloat(downPayment) || 0;
   const loanAmount = Math.max(0, f2(price - dp));
   const plan       = selectedPlan;
-  const emi        = useMemo(() => calcEmi(loanAmount, plan.annualRate, plan.months), [loanAmount, plan]);
-  const totalPayable  = f2(emi * plan.months + dp);
-  const totalInterest = Math.max(0, f2(totalPayable - price));
+  const loanCalc = useMemo(
+    () => calcFlatLoan(price, dp, plan.annualRate, plan.months),
+    [price, dp, plan]
+  );
+  const emi = loanCalc.monthlyEmi;
+  const totalPayable = loanCalc.totalPayable;
+  const totalInterest = loanCalc.interestAmount;
+  const remainingPayable = loanCalc.remainingPayable;
   const dpPct         = price > 0 ? f2((dp / price) * 100) : 0;
   const income        = Number(monthlyIncome) || 0;
   const emiRatio      = income > 0 && emi > 0 ? emi / income : 0;
@@ -406,8 +422,8 @@ export default function ApplyLoanPage() {
   }, [sysSettings.firstEmiDelayDays]);
 
   const schedule = useMemo(
-    () => loanAmount > 0 ? buildSchedule(loanAmount, plan.annualRate, plan.months, firstDueDate) : [],
-    [loanAmount, plan, firstDueDate]
+    () => remainingPayable > 0 ? buildSchedule(emi, plan.months, firstDueDate) : [],
+    [remainingPayable, emi, plan.months, firstDueDate]
   );
 
   // ── Effects ──
@@ -502,13 +518,17 @@ export default function ApplyLoanPage() {
 
   // ── Comparison: both plans at current dp ──
   const planComparison = useMemo(() => {
-    if (!loanAmount) return null;
+    if (!price || !dp || dp >= price) return null;
     return LOAN_PLANS.map((p) => {
-      const e = calcEmi(loanAmount, p.annualRate, p.months);
-      const tp = f2(e * p.months + dp);
-      return { ...p, emi: f2(e), totalPayable: tp, totalInterest: f2(Math.max(0, tp - price)) };
+      const calc = calcFlatLoan(price, dp, p.annualRate, p.months);
+      return {
+        ...p,
+        emi: calc.monthlyEmi,
+        totalPayable: calc.totalPayable,
+        totalInterest: calc.interestAmount,
+      };
     });
-  }, [loanAmount, dp, price]);
+  }, [price, dp]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // SUCCESS SCREEN
@@ -532,7 +552,7 @@ export default function ApplyLoanPage() {
               ["Product Price",    fmt(submitted.productPrice)],
               ["Down Payment",     fmt(submitted.downPayment)],
               ["Loan Amount",      fmt(submitted.loanAmount)],
-              ["Plan",             `${submitted.tenureMonths}-Month @ ${submitted.interestRate}% p.a.`],
+              ["Plan",             `${submitted.tenureMonths}-Month @ ${submitted.interestRate}% Flat`],
               ["Monthly EMI",      fmt(Math.round(submitted.monthlyEmi))],
               ["Total Payable",    fmt(submitted.totalPayable)],
               ["Status",           "Pending Review"],
@@ -638,7 +658,7 @@ export default function ApplyLoanPage() {
                             <span className="text-sm font-bold">{p.label}</span>
                           </div>
                           <p className={`text-2xl font-black ${p.textCls}`}>{p.annualRate}%</p>
-                          <p className="text-xs text-slate-500 mt-0.5">annual interest</p>
+                          <p className="text-xs text-slate-500 mt-0.5">flat interest</p>
                           <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${p.badgeCls}`}>{p.badge}</span>
                         </div>
                       );
@@ -677,7 +697,7 @@ export default function ApplyLoanPage() {
                   {LOAN_PLANS.map((p) => {
                     const Icon = p.icon;
                     const sel  = selectedPlan.months === p.months;
-                    const previewEmi = loanAmount > 0 ? calcEmi(loanAmount, p.annualRate, p.months) : 0;
+                    const previewEmi = loanAmount > 0 ? calcFlatLoan(price, dp, p.annualRate, p.months).monthlyEmi : 0;
                     return (
                       <button key={p.months} type="button" onClick={() => setSelectedPlan(p)}
                         className={`relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
@@ -700,7 +720,7 @@ export default function ApplyLoanPage() {
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs">
                             <span className="text-slate-500">Interest rate</span>
-                            <span className={`font-bold ${p.textCls}`}>{p.annualRate}% p.a.</span>
+                            <span className={`font-bold ${p.textCls}`}>{p.annualRate}% Flat</span>
                           </div>
                           {loanAmount > 0 && (
                             <div className="flex justify-between text-xs">
@@ -804,16 +824,16 @@ export default function ApplyLoanPage() {
                       <Separator />
                       <div className="space-y-3">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          {plan.label} · {plan.annualRate}% p.a.
+                          {plan.label} · {plan.annualRate}% Flat
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                           <MetricTile label="Monthly EMI" value={fmt(Math.round(emi))} sub={`for ${plan.months} months`} icon={CreditCard}
                             cls={`${plan.bgCls} border ${plan.accent} ${plan.textCls}`} />
                           <MetricTile label="Loan Amount" value={fmt(loanAmount)} sub="principal" icon={Banknote}
                             cls="border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300" />
-                          <MetricTile label="Total Interest" value={fmt(Math.round(totalInterest))} sub={`${((totalInterest / loanAmount) * 100).toFixed(1)}% of loan`} icon={TrendingUp}
+                          <MetricTile label="Total Interest" value={fmt(Math.round(totalInterest))} sub="flat on product price" icon={TrendingUp}
                             cls="border-amber-100 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300" />
-                          <MetricTile label="Total Payable" value={fmt(Math.round(totalPayable))} sub="incl. down payment" icon={ReceiptText}
+                          <MetricTile label="Total Payable" value={fmt(Math.round(totalPayable))} sub="product + interest" icon={ReceiptText}
                             cls="border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-300" />
                         </div>
                       </div>
@@ -1036,7 +1056,7 @@ export default function ApplyLoanPage() {
               <div className={`overflow-hidden rounded-2xl bg-gradient-to-br ${plan.headerCls} p-6 text-white shadow-lg`}>
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest opacity-70">{plan.label} · {plan.annualRate}% p.a.</p>
+                    <p className="text-xs font-bold uppercase tracking-widest opacity-70">{plan.label} · {plan.annualRate}% Flat</p>
                     <p className="mt-1 text-4xl font-black">{fmt(Math.round(emi))}<span className="ml-1.5 text-lg font-medium opacity-75">/month</span></p>
                   </div>
                   <span className={`rounded-full px-3 py-1.5 text-xs font-black ${plan.badgeCls}`}>{plan.badge}</span>
@@ -1076,7 +1096,7 @@ export default function ApplyLoanPage() {
                         ["Product Price",   fmt(price),                    ""],
                         ["Down Payment",    fmt(dp),                       "font-bold text-blue-600 dark:text-blue-400"],
                         ["Loan Amount",     fmt(loanAmount),               "font-bold"],
-                        ["Plan",            `${plan.label} · ${plan.annualRate}% p.a.`, `font-bold ${plan.textCls}`],
+                        ["Plan",            `${plan.label} · ${plan.annualRate}% Flat`, `font-bold ${plan.textCls}`],
                         ["Monthly EMI",     fmt(Math.round(emi)),          `font-black ${plan.textCls}`],
                         ["Total Interest",  fmt(Math.round(totalInterest)),"text-amber-600 dark:text-amber-400"],
                         ["Total Payable",   fmt(Math.round(totalPayable)), "font-bold"],

@@ -8,7 +8,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
-import { calcEmi, validateDownPayment, f2 } from "@/lib/loan-utils";
+import {
+  calcFlatProductPriceEmi,
+  validateDownPayment,
+  f2,
+} from "@/lib/loan-utils";
 
 const ALLOWED_TENURES = [3, 6];
 const REQUIRED_DOC_TYPES = ["nid_front", "nid_back", "selfie", "nominee_photo"];
@@ -81,7 +85,9 @@ export async function POST(req) {
 
     if (!ALLOWED_TENURES.includes(tenure)) {
       return NextResponse.json(
-        { error: `Invalid tenureMonths. Allowed: ${ALLOWED_TENURES.join(", ")}.` },
+        {
+          error: `Invalid tenureMonths. Allowed: ${ALLOWED_TENURES.join(", ")}.`,
+        },
         { status: 400 }
       );
     }
@@ -132,7 +138,10 @@ export async function POST(req) {
 
     if (!/^01[3-9]\d{8}$/.test(String(nomineePhone).trim())) {
       return NextResponse.json(
-        { error: "Nominee phone must be a valid BD mobile number (01XXXXXXXXX)." },
+        {
+          error:
+            "Nominee phone must be a valid BD mobile number (01XXXXXXXXX).",
+        },
         { status: 400 }
       );
     }
@@ -178,7 +187,9 @@ export async function POST(req) {
 
       if (!doc.url || !String(doc.url).startsWith("https://")) {
         return NextResponse.json(
-          { error: `Document "${doc.type}" has invalid URL. Please re-upload.` },
+          {
+            error: `Document "${doc.type}" has invalid URL. Please re-upload.`,
+          },
           { status: 400 }
         );
       }
@@ -222,7 +233,10 @@ export async function POST(req) {
       lateFee: setting?.lateFee ?? 100,
     };
 
-    const dpErr = validateDownPayment(Number(downPayment), Number(product.price));
+    const dpErr = validateDownPayment(
+      Number(downPayment),
+      Number(product.price)
+    );
 
     if (dpErr) {
       return NextResponse.json({ error: dpErr }, { status: 400 });
@@ -262,8 +276,16 @@ export async function POST(req) {
     }
 
     const interestRate = PLAN_INTEREST_MAP[tenure];
-    const emi = calcEmi(loanAmount, interestRate, tenure);
-    const totalPayable = f2(emi * tenure + dp);
+
+    const loanCalc = calcFlatProductPriceEmi(
+      Number(product.price),
+      dp,
+      interestRate,
+      tenure
+    );
+
+    const emi = loanCalc.monthlyEmi;
+    const totalPayable = loanCalc.totalPayable;
 
     const loan = await prisma.loanApplication.create({
       data: {
@@ -276,7 +298,7 @@ export async function POST(req) {
         interestRate,
         tenureMonths: tenure,
         monthlyEmi: f2(emi),
-        totalPayable,
+        totalPayable: f2(totalPayable),
         firstEmiDelayDays: cfg.firstEmiDelayDays,
         gracePeriodDays: cfg.gracePeriodDays,
         lateFee: cfg.lateFee,
@@ -299,10 +321,11 @@ export async function POST(req) {
             return {
               type: DOC_TYPE_MAP[type] || "OTHER",
               url: doc.url,
-              fileId: doc.fileId || null,
               title:
                 doc.title ||
-                type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                type.replace(/_/g, " ").replace(/\b\w/g, (c) =>
+                  c.toUpperCase()
+                ),
             };
           }),
         },
@@ -354,10 +377,7 @@ export async function GET(req) {
     const current = await getCurrentUser();
 
     if (!current) {
-      return NextResponse.json(
-        { error: "Unauthorized." },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -418,7 +438,10 @@ export async function GET(req) {
       loans: loans.map((loan) => ({
         ...loan,
         totalCollected: f2(
-          loan.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+          loan.payments.reduce(
+            (sum, payment) => sum + Number(payment.amount),
+            0
+          )
         ),
         payments: undefined,
       })),

@@ -795,19 +795,20 @@ export default function AdminLoansPage() {
                       <div className="bg-white dark:bg-[#111318] rounded-xl border p-4 space-y-2">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Financial Summary</p>
                         {[
-                          ["Product Price",           fmt(loan.productPrice),                       ""],
-                          ["Down Payment Required",    fmt(loan.downPayment),                         ""],
-                          ["Down Payment Paid",        fmt(loan.downPaymentPaid),                    loan.downPaymentPaid >= loan.downPayment ? "text-emerald-600 font-bold" : "text-orange-600 font-bold"],
-                          ["Loan Amount",              fmt(loan.loanAmount),                          "text-blue-600 font-bold"],
-                          ["Interest Rate",            `${loan.interestRate}% p.a.`,                  ""],
-                          ["Tenure",                   `${loan.tenureMonths} months`,                 ""],
-                          ["Monthly EMI",              fmt(loan.monthlyEmi),                          "font-bold"],
-                          ["Total Payable",            fmt(loan.totalPayable),                        ""],
-                          ["Total Collected",          fmt(totalCollected),                           "text-emerald-600 font-semibold"],
-                          ["Outstanding Balance",      fmt(totalOutstanding),                         totalOutstanding > 0 ? "text-orange-600 font-semibold" : "text-emerald-600 font-semibold"],
-                          ["Late Fee / Installment",   fmt(loan.lateFee),                             ""],
-                          ["Grace Period",             `${loan.gracePeriodDays} days`,                ""],
-                        ].map(([k, v, cls]) => (
+  ["Product Price", fmt(loan.productPrice), ""],
+  ["Down Payment Required", fmt(loan.downPayment), ""],
+  ["Down Payment Paid", fmt(loan.downPaymentPaid), loan.downPaymentPaid >= loan.downPayment ? "text-emerald-600 font-bold" : "text-orange-600 font-bold"],
+  ["Loan Amount", fmt(loan.loanAmount), "text-blue-600 font-bold"],
+  ["Interest Rate", `${loan.interestRate}% Flat`, ""],
+  ["Interest Type", "Flat on Product Price", "text-blue-600 font-semibold"],
+  ["Tenure", `${loan.tenureMonths} months`, ""],
+  ["Monthly EMI", fmt(loan.monthlyEmi), "font-bold"],
+  ["Total Payable", fmt(loan.totalPayable), ""],
+  ["Total Collected", fmt(totalCollected), "text-emerald-600 font-semibold"],
+  ["Outstanding Balance", fmt(totalOutstanding), totalOutstanding > 0 ? "text-orange-600 font-semibold" : "text-emerald-600 font-semibold"],
+  ["Late Fee / Installment", fmt(loan.lateFee), ""],
+  ["Grace Period", `${loan.gracePeriodDays} days`, ""],
+].map(([k, v, cls]) => (
                           <div key={k} className="flex items-center justify-between py-1.5 border-b last:border-0 text-sm">
                             <span className="text-muted-foreground">{k}</span>
                             <span className={cls || "font-medium"}>{v}</span>

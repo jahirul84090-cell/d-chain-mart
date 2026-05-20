@@ -5,7 +5,52 @@
  * Imported by all loan API routes — single source of truth.
  */
 
-// ─── EMI Calculator (Reducing Balance) ───────────────────────────────────────
+// ─── EMI Calculator: Flat Interest On Full Product Price ──────────────────────
+
+/**
+ * Your business rule:
+ * Interest is calculated on the FULL product price.
+ * Down payment only reduces remaining payable, not interest.
+ *
+ * Example:
+ * Product price = 4000
+ * Interest = 10% = 400
+ * Total payable = 4400
+ * Down payment = 2000
+ * Remaining = 2400
+ * 3-month EMI = 800
+ */
+export function calcFlatProductPriceEmi(
+  productPrice,
+  downPayment,
+  interestRatePct,
+  tenureMonths
+) {
+  const price = Number(productPrice);
+  const dp = Number(downPayment);
+  const rate = Number(interestRatePct);
+  const months = Number(tenureMonths);
+
+  if (!price || price <= 0) throw new Error("productPrice must be > 0");
+  if (dp < 0) throw new Error("downPayment cannot be negative");
+  if (dp >= price) throw new Error("downPayment must be less than productPrice");
+  if (!months || months <= 0) throw new Error("tenureMonths must be > 0");
+
+  const interestAmount = price * (rate / 100);
+  const totalPayable = price + interestAmount;
+  const remainingPayable = totalPayable - dp;
+  const monthlyEmi = remainingPayable / months;
+
+  return {
+    interestAmount: f2(interestAmount),
+    totalPayable: f2(totalPayable),
+    remainingPayable: f2(remainingPayable),
+    monthlyEmi: f2(monthlyEmi),
+  };
+}
+
+// ─── Old EMI Calculator: Reducing Balance ─────────────────────────────────────
+// Keep this if any old admin/report route still imports calcEmi.
 
 export function calcEmi(loanAmount, annualRatePct, tenureMonths) {
   const principal = Number(loanAmount);
