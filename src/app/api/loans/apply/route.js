@@ -13,6 +13,7 @@ import {
   validateDownPayment,
   f2,
 } from "@/lib/loan-utils";
+import { sendLoanEmail } from "@/lib/loan-email";
 
 const ALLOWED_TENURES = [3, 6];
 const REQUIRED_DOC_TYPES = ["nid_front", "nid_back", "selfie", "nominee_photo"];
@@ -331,6 +332,12 @@ export async function POST(req) {
         },
       },
       include: {
+        user: {
+    select: {
+      email: true,
+      name: true,
+    },
+  },
         product: {
           select: {
             id: true,
@@ -342,7 +349,14 @@ export async function POST(req) {
         documents: true,
       },
     });
-
+try {
+  await sendLoanEmail({
+    type: "APPLICATION_SUBMITTED",
+    loan,
+  });
+} catch (emailError) {
+  console.error("[LOAN_APPLICATION_EMAIL_ERROR]", emailError);
+}
     return NextResponse.json(
       {
         message: "Loan application submitted successfully.",

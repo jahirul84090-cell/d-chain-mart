@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 import { isAdminUser, addMonths, f2 } from "@/lib/loan-utils";
+import { sendLoanEmail } from "@/lib/loan-email";
 
 export async function POST(req, { params }) {
   try {
@@ -33,7 +34,9 @@ export async function POST(req, { params }) {
       );
     }
 
-    const installmentTotal = f2(Number(loan.totalPayable) - Number(loan.downPayment));
+    const installmentTotal = f2(
+      Number(loan.totalPayable) - Number(loan.downPayment)
+    );
 
     if (installmentTotal <= 0) {
       return NextResponse.json(
@@ -145,8 +148,30 @@ export async function POST(req, { params }) {
             adminNote: adminNote.trim(),
           }),
         },
+        include: {
+          user: {
+            select: {
+              email: true,
+              name: true,
+            },
+          },
+          product: {
+            select: {
+              name: true,
+            },
+          },
+        },
       });
     });
+
+    try {
+      await sendLoanEmail({
+        type: "DOWN_PAYMENT_PENDING",
+        loan: updated,
+      });
+    } catch (emailError) {
+      console.error("[LOAN_APPROVE_EMAIL_ERROR]", emailError);
+    }
 
     return NextResponse.json({
       message: "Approved. Awaiting down payment.",
