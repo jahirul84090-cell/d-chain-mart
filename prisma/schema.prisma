@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -37,7 +37,8 @@ model User {
   otpCode                 String?   @unique
   otpExpiresAt            DateTime?
   lastSessionInvalidation DateTime?
-   loanApplications LoanApplication[]
+
+  loanApplications        LoanApplication[]
 }
 
 model Account {
@@ -65,6 +66,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -75,26 +77,24 @@ model Category {
   name     String    @unique
   slug     String    @unique
   imageUrl String?
+
   products Product[]
 }
 
-
-
 model Review {
-  id          String        @id @default(uuid())
+  id          String   @id @default(uuid())
   productId   String
   userId      String
-  rating      Int           @default(5) @db.SmallInt
-  title       String?       @db.VarChar(100)
+  rating      Int      @default(5) @db.SmallInt
+  title       String?  @db.VarChar(100)
   content     String
-  isApproved  Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   images      ReviewImage[]
-
-  product     Product       @relation(fields: [productId], references: [id])
-  user        User          @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 
   @@unique([productId, userId])
   @@index([productId, userId])
@@ -133,17 +133,17 @@ model Cart {
 }
 
 model CartItem {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   cartId        String
   productId     String
   quantity      Int
   selectedSize  String?
   selectedColor String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  cart          Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product       Product   @relation(fields: [productId], references: [id])
+  cart          Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id])
 
   @@index([cartId])
   @@index([productId])
@@ -164,81 +164,85 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
+
 model Product {
-  id               String         @id @default(uuid())
+  id               String   @id @default(uuid())
   name             String
-  slug             String         @unique
+  slug             String   @unique
   shortdescription String?
-  description      String?          @db.Text
+  description      String?  @db.Text
   price            Float
-  stockAmount      Int            @default(0)
+  stockAmount      Int      @default(0)
 
   availableSizes   String?
   availableColors  String?
 
-  isFeatured       Boolean        @default(false)
-  isPopular        Boolean        @default(false)
-  isNewArrival     Boolean        @default(false)
-  isSlider         Boolean        @default(false)
+  isFeatured       Boolean  @default(false)
+  isPopular        Boolean  @default(false)
+  isNewArrival     Boolean  @default(false)
+  isSlider         Boolean  @default(false)
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   categoryId       String
-  category         Category       @relation(fields: [categoryId], references: [id])
+  category         Category @relation(fields: [categoryId], references: [id])
   mainImage        String
-  isActive         Boolean        @default(true)
+  isActive         Boolean  @default(true)
+
   images           ProductImage[]
-  totalSales       Float          @default(0)
-  views            Float          @default(0)
   reviews          Review[]
-  wishlists        Wishlist[]     @relation(name: "ProductOnWishlist")
+  wishlists        Wishlist[] @relation(name: "ProductOnWishlist")
   orderItems       OrderItem[]
-  oldPrice         Float          @default(0)
-  discount         Float          @default(0)
   cartItems        CartItem[]
-   loanApplications LoanApplication[]
+  loanApplications LoanApplication[]
+
+  totalSales       Float    @default(0)
+  views            Float    @default(0)
+  oldPrice         Float    @default(0)
+  discount         Float    @default(0)
 
   @@index([categoryId])
 }
+
 model Order {
-  id                  String      @id @default(uuid())
-  userId              String
-  orderTotal          Float
-  deliveryFee         Float       @default(0)
-  shippingAddressId   String
-  status              OrderStatus @default(PENDING)
-  paymentMethodId     String?
-  transactionNumber   String      @unique
-  isPaid              Boolean     @default(false)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  isInvoiceGenerated  Boolean     @default(false)
+  id                 String      @id @default(uuid())
+  userId             String
+  orderTotal         Float
+  deliveryFee        Float       @default(0)
+  shippingAddressId  String
+  status             OrderStatus @default(PENDING)
+  paymentMethodId    String?
+  transactionNumber  String      @unique
+  isPaid             Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  isInvoiceGenerated Boolean     @default(false)
 
-  invoice             Invoice?
+  invoice            Invoice?
+  user               User        @relation(fields: [userId], references: [id])
+  shippingAddress    Address     @relation(fields: [shippingAddressId], references: [id])
+  items              OrderItem[]
+  paymentMethod      PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  loanApplications   LoanApplication[]
 
-  user                User        @relation(fields: [userId], references: [id])
-  shippingAddress     Address     @relation(fields: [shippingAddressId], references: [id])
-  items               OrderItem[]
-  paymentMethod       PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
- loanApplications LoanApplication[]
   @@index([userId])
   @@index([shippingAddressId])
   @@index([paymentMethodId])
 }
 
 model OrderItem {
-  id            String    @id @default(uuid())
-  orderId       String
-  productId     String
+  id              String   @id @default(uuid())
+  orderId         String
+  productId       String
   productSnapshot Json
-  quantity      Int
-  pricePaid     Float
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  quantity        Int
+  pricePaid       Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  order         Order     @relation(fields: [orderId], references: [id])
-  product       Product   @relation(fields: [productId], references: [id])
+  order           Order    @relation(fields: [orderId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
 
   @@unique([orderId, productId])
   @@index([orderId, productId])
@@ -265,14 +269,13 @@ model PaymentMethod {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  orders Order[]
+  orders           Order[]
 }
 
 model Invoice {
   id            String   @id @default(cuid())
   invoiceNumber String   @unique
   createdAt     DateTime @default(now())
-
   invoiceUrl    String
 
   orderId       String   @unique
@@ -306,9 +309,6 @@ model Media {
   createdAt DateTime @default(now())
 }
 
-
-
-
 enum LoanStatus {
   PENDING
   REVIEWING
@@ -332,6 +332,7 @@ enum LoanDocumentType {
   NID_FRONT
   NID_BACK
   SELFIE
+  NOMINEE_PHOTO
   SALARY_PROOF
   BANK_STATEMENT
   OTHER
@@ -354,50 +355,58 @@ enum LoanPaymentStatus {
 }
 
 model LoanApplication {
-  id                 String     @id @default(uuid())
+  id                String     @id @default(uuid())
 
-  userId             String
-  productId          String
-  orderId            String?    @unique
+  userId            String
+  productId         String
+  orderId           String?    @unique
 
-  productPrice       Float
-  downPayment        Float
-  downPaymentPaid    Float      @default(0)
+  productPrice      Float
+  downPayment       Float
+  downPaymentPaid   Float      @default(0)
 
-  loanAmount         Float
-  interestRate       Float      @default(0)
-  tenureMonths       Int
-  monthlyEmi         Float
-  totalPayable       Float
+  loanAmount        Float
+  interestRate      Float      @default(0)
+  tenureMonths      Int
+  monthlyEmi        Float
+  totalPayable      Float
 
-  firstEmiDelayDays  Int        @default(30)
-  gracePeriodDays    Int        @default(3)
-  lateFee            Float      @default(0)
+  firstEmiDelayDays Int        @default(30)
+  gracePeriodDays   Int        @default(3)
+  lateFee           Float      @default(0)
 
-  status             LoanStatus @default(PENDING)
+  status            LoanStatus @default(PENDING)
 
-  appliedAt          DateTime   @default(now())
-  approvedAt         DateTime?
-  rejectedAt         DateTime?
-  loanStartDate      DateTime?
-  firstDueDate       DateTime?
+  appliedAt         DateTime   @default(now())
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  loanStartDate     DateTime?
+  firstDueDate      DateTime?
 
-  nidNumber          String?
-  monthlyIncome      Float?
-  jobType            String?
-  customerNote       String?    @db.Text
-  adminNote          String?    @db.Text
+  applicantName     String?
+  applicantAddress  String?    @db.Text
 
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  nidNumber         String?
+  monthlyIncome     Float?
+  jobType           String?
+  customerNote      String?    @db.Text
+  adminNote         String?    @db.Text
 
-  user               User       @relation(fields: [userId], references: [id])
-  product            Product    @relation(fields: [productId], references: [id])
-  order              Order?     @relation(fields: [orderId], references: [id])
+  nomineeName       String?
+  nomineeRelation   String?
+  nomineePhone      String?
+  nomineeAddress    String?    @db.Text
 
-  installments       InstallmentPayment[]
-  documents          LoanDocument[]
-  payments           LoanPayment[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  user              User       @relation(fields: [userId], references: [id])
+  product           Product    @relation(fields: [productId], references: [id])
+  order             Order?     @relation(fields: [orderId], references: [id])
+
+  installments      InstallmentPayment[]
+  documents         LoanDocument[]
+  payments          LoanPayment[]
 
   @@index([userId])
   @@index([productId])
@@ -406,31 +415,31 @@ model LoanApplication {
 }
 
 model InstallmentPayment {
-  id                 String            @id @default(uuid())
-  loanApplicationId  String
+  id                String            @id @default(uuid())
+  loanApplicationId String
 
-  installmentNo      Int
-  dueDate            DateTime
-  originalDueDate    DateTime?
+  installmentNo     Int
+  dueDate           DateTime
+  originalDueDate   DateTime?
 
-  amount             Float
-  paidAmount         Float             @default(0)
-  remainingAmount    Float             @default(0)
-  lateFee            Float             @default(0)
+  amount            Float
+  paidAmount        Float             @default(0)
+  remainingAmount   Float             @default(0)
+  lateFee           Float             @default(0)
 
-  status             InstallmentStatus @default(UNPAID)
+  status            InstallmentStatus @default(UNPAID)
 
-  paidAt             DateTime?
-  note               String?           @db.Text
+  paidAt            DateTime?
+  note              String?           @db.Text
 
-  isDateChanged      Boolean           @default(false)
-  dateChangedReason  String?           @db.Text
+  isDateChanged     Boolean           @default(false)
+  dateChangedReason String?           @db.Text
 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  loanApplication    LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
-  payments           LoanPayment[]
+  loanApplication   LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  payments          LoanPayment[]
 
   @@index([loanApplicationId])
   @@index([dueDate])
@@ -438,29 +447,29 @@ model InstallmentPayment {
 }
 
 model LoanPayment {
-  id                 String            @id @default(uuid())
+  id                String            @id @default(uuid())
 
-  loanApplicationId  String
-  installmentId      String?
+  loanApplicationId String
+  installmentId     String?
 
-  paymentType        LoanPaymentType
-  status             LoanPaymentStatus @default(PENDING)
+  paymentType       LoanPaymentType
+  status            LoanPaymentStatus @default(PENDING)
 
-  amount             Float
+  amount            Float
 
-  paymentMethod      String?
-  transactionNumber  String?
-  referenceNumber    String?
-  receivedBy         String?
+  paymentMethod     String?
+  transactionNumber String?
+  referenceNumber   String?
+  receivedBy        String?
 
-  paidAt             DateTime?
-  note               String?           @db.Text
+  paidAt            DateTime?
+  note              String?           @db.Text
 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  loanApplication    LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
-  installment        InstallmentPayment? @relation(fields: [installmentId], references: [id])
+  loanApplication   LoanApplication   @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  installment       InstallmentPayment? @relation(fields: [installmentId], references: [id])
 
   @@index([loanApplicationId])
   @@index([installmentId])
@@ -470,30 +479,30 @@ model LoanPayment {
 }
 
 model LoanDocument {
-  id                 String           @id @default(uuid())
-  loanApplicationId  String
-  type               LoanDocumentType
-  url                String
-  title              String?
-  createdAt          DateTime         @default(now())
+  id                String           @id @default(uuid())
+  loanApplicationId String
+  type              LoanDocumentType
+  url               String
+  title             String?
+  createdAt         DateTime         @default(now())
 
-  loanApplication    LoanApplication  @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
+  loanApplication   LoanApplication  @relation(fields: [loanApplicationId], references: [id], onDelete: Cascade)
 
   @@index([loanApplicationId])
 }
 
 model LoanSetting {
-  id                 String   @id @default(uuid())
+  id                String   @id @default(uuid())
 
-  minDownPaymentPct  Float    @default(30)
-  defaultInterest    Float    @default(10)
-  defaultTenure      Int      @default(12)
-  firstEmiDelayDays  Int      @default(30)
-  gracePeriodDays    Int      @default(3)
-  lateFee            Float    @default(100)
+  minDownPaymentPct Float    @default(30)
+  defaultInterest   Float    @default(10)
+  defaultTenure     Int      @default(12)
+  firstEmiDelayDays Int      @default(30)
+  gracePeriodDays   Int      @default(3)
+  lateFee           Float    @default(100)
 
-  isActive           Boolean  @default(true)
+  isActive          Boolean  @default(true)
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

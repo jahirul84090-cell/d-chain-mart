@@ -1,45 +1,43 @@
 /**
  * File: app/api/loans/apply/route.js
  *
- * POST /api/loans/apply  — Submit a new loan application (authenticated user)
- * GET  /api/loans/apply  — List the current user's own loan applications
- *
- * Production validations (POST):
- *  - User must be authenticated
- *  - productId, downPayment, tenureMonths required
- *  - Product must exist and be active
- *  - Down payment rules (all enforced, watertight):
- *      • Must be a positive number
- *      • Cannot be >= product price (loan amount must be > 0)
- *      • Cannot exceed 95% of product price (use direct purchase instead)
- *      • Must be >= minDownPaymentPct% of product price (from LoanSetting)
- *  - No duplicate active loan for same user + product
- *  - tenureMonths must be one of the allowed values
+ * POST /api/loans/apply  — Submit loan application (auth required)
+ * GET  /api/loans/apply  — List current user's own applications
  */
 
-import { NextResponse }        from "next/server";
-import { getCurrentUser }      from "@/lib/user";
-import { prisma }              from "@/lib/prisma";
-import {
-  calcEmi,
-  validateDownPayment,
-  f2,
-} from "@/lib/loan-utils";
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user";
+import { prisma } from "@/lib/prisma";
+import { calcEmi, validateDownPayment, f2 } from "@/lib/loan-utils";
 
-// ─── Allowed tenure options ───────────────────────────────────────────────────
+const ALLOWED_TENURES = [3, 6];
+const REQUIRED_DOC_TYPES = ["nid_front", "nid_back", "selfie", "nominee_photo"];
 
-const ALLOWED_TENURES = [3, 6, 9, 12, 18, 24, 36];
+const DOC_TYPE_MAP = {
+  nid_front: "NID_FRONT",
+  nid_back: "NID_BACK",
+  selfie: "SELFIE",
+  nominee_photo: "NOMINEE_PHOTO",
+};
 
-// ─── POST /api/loans/apply ────────────────────────────────────────────────────
+const PLAN_INTEREST_MAP = {
+  3: 10,
+  6: 20,
+};
 
 export async function POST(req) {
   try {
-    // ── Auth ──
     const current = await getCurrentUser();
-    if (!current)
-      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+
+    if (!current) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in." },
+        { status: 401 }
+      );
+    }
 
     const body = await req.json();
+
     const {
       productId,
       downPayment,
@@ -48,145 +46,276 @@ export async function POST(req) {
       monthlyIncome,
       jobType,
       customerNote,
-      documents, // [{ type, url, title }]
+      applicantName,
+      applicantAddress,
+      nomineeName,
+      nomineeRelation,
+      nomineePhone,
+      nomineeAddress,
+      documents,
     } = body;
 
-    // ── Required field check ──
     const missing = [];
-    if (!productId)    missing.push("productId");
-    if (!downPayment)  missing.push("downPayment");
+
+    if (!productId) missing.push("productId");
+    if (!downPayment) missing.push("downPayment");
     if (!tenureMonths) missing.push("tenureMonths");
-    if (missing.length)
+    if (!nidNumber) missing.push("nidNumber");
+    if (!monthlyIncome) missing.push("monthlyIncome");
+    if (!jobType) missing.push("jobType");
+    if (!applicantName) missing.push("applicantName");
+    if (!applicantAddress) missing.push("applicantAddress");
+    if (!nomineeName) missing.push("nomineeName");
+    if (!nomineeRelation) missing.push("nomineeRelation");
+    if (!nomineePhone) missing.push("nomineePhone");
+    if (!nomineeAddress) missing.push("nomineeAddress");
+
+    if (missing.length) {
       return NextResponse.json(
         { error: `Missing required fields: ${missing.join(", ")}.` },
         { status: 400 }
       );
-
-    // ── Tenure validation ──
-    const tenure = parseInt(tenureMonths);
-    if (!ALLOWED_TENURES.includes(tenure))
-      return NextResponse.json(
-        { error: `Invalid tenureMonths. Allowed values: ${ALLOWED_TENURES.join(", ")} months.` },
-        { status: 400 }
-      );
-
-    // ── NID format check (10 or 17 digits) ──
-    if (nidNumber && !/^\d{10}$|^\d{17}$/.test(nidNumber.trim()))
-      return NextResponse.json(
-        { error: "NID number must be exactly 10 or 17 digits." },
-        { status: 400 }
-      );
-
-    // ── Income check ──
-    if (monthlyIncome !== undefined && monthlyIncome !== null) {
-      const inc = parseFloat(monthlyIncome);
-      if (isNaN(inc) || inc < 0)
-        return NextResponse.json(
-          { error: "monthlyIncome must be a non-negative number." },
-          { status: 400 }
-        );
     }
 
-    // ── Fetch product ──
-    const product = await prisma.product.findUnique({
-      where: { id: productId, isActive: true },
-      select: { id: true, name: true, price: true, stockAmount: true },
+    const tenure = Number(tenureMonths);
+
+    if (!ALLOWED_TENURES.includes(tenure)) {
+      return NextResponse.json(
+        { error: `Invalid tenureMonths. Allowed: ${ALLOWED_TENURES.join(", ")}.` },
+        { status: 400 }
+      );
+    }
+
+    if (!/^\d{10}$|^\d{17}$/.test(String(nidNumber).trim())) {
+      return NextResponse.json(
+        { error: "NID must be exactly 10 or 17 digits." },
+        { status: 400 }
+      );
+    }
+
+    const income = Number(monthlyIncome);
+
+    if (!income || income <= 0) {
+      return NextResponse.json(
+        { error: "monthlyIncome must be positive." },
+        { status: 400 }
+      );
+    }
+
+    if (String(applicantName).trim().length < 3) {
+      return NextResponse.json(
+        { error: "Applicant name must be at least 3 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (String(applicantAddress).trim().length < 10) {
+      return NextResponse.json(
+        { error: "Applicant address must be at least 10 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (String(nomineeName).trim().length < 3) {
+      return NextResponse.json(
+        { error: "Nominee name must be at least 3 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (String(nomineeRelation).trim().length < 2) {
+      return NextResponse.json(
+        { error: "Nominee relation is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!/^01[3-9]\d{8}$/.test(String(nomineePhone).trim())) {
+      return NextResponse.json(
+        { error: "Nominee phone must be a valid BD mobile number (01XXXXXXXXX)." },
+        { status: 400 }
+      );
+    }
+
+    if (String(nomineeAddress).trim().length < 10) {
+      return NextResponse.json(
+        { error: "Nominee address must be at least 10 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(documents) || documents.length === 0) {
+      return NextResponse.json(
+        { error: `All documents required: ${REQUIRED_DOC_TYPES.join(", ")}.` },
+        { status: 400 }
+      );
+    }
+
+    const submittedTypes = documents.map((doc) =>
+      String(doc.type || "").toLowerCase()
+    );
+
+    const missingDocs = REQUIRED_DOC_TYPES.filter(
+      (type) => !submittedTypes.includes(type)
+    );
+
+    if (missingDocs.length) {
+      return NextResponse.json(
+        { error: `Missing documents: ${missingDocs.join(", ")}.` },
+        { status: 400 }
+      );
+    }
+
+    for (const doc of documents) {
+      const type = String(doc.type || "").toLowerCase();
+
+      if (!REQUIRED_DOC_TYPES.includes(type)) {
+        return NextResponse.json(
+          { error: `Invalid document type: ${doc.type}.` },
+          { status: 400 }
+        );
+      }
+
+      if (!doc.url || !String(doc.url).startsWith("https://")) {
+        return NextResponse.json(
+          { error: `Document "${doc.type}" has invalid URL. Please re-upload.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stockAmount: true,
+      },
     });
 
-    if (!product)
+    if (!product) {
       return NextResponse.json(
-        { error: "Product not found or is currently inactive." },
+        { error: "Product not found or inactive." },
         { status: 404 }
       );
+    }
 
-    if (product.stockAmount <= 0)
+    if (Number(product.stockAmount || 0) <= 0) {
       return NextResponse.json(
-        { error: "This product is currently out of stock." },
+        { error: "This product is out of stock." },
         { status: 400 }
       );
+    }
 
-    // ── Fetch active loan settings ──
-    const setting = await prisma.loanSetting.findFirst({ where: { isActive: true } });
+    const setting = await prisma.loanSetting.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+    });
+
     const cfg = {
-      minDownPaymentPct: setting?.minDownPaymentPct ?? 30,
-      defaultInterest:   setting?.defaultInterest   ?? 10,
       firstEmiDelayDays: setting?.firstEmiDelayDays ?? 30,
-      gracePeriodDays:   setting?.gracePeriodDays   ?? 3,
-      lateFee:           setting?.lateFee           ?? 100,
+      gracePeriodDays: setting?.gracePeriodDays ?? 3,
+      lateFee: setting?.lateFee ?? 100,
     };
 
-    // ── Down payment validation (watertight) ──
-    const dpError = validateDownPayment(
-      parseFloat(downPayment),
-      product.price,
-      cfg.minDownPaymentPct
-      // maxDownPaymentPct defaults to 95%
-    );
-    if (dpError)
-      return NextResponse.json({ error: dpError }, { status: 400 });
+    const dpErr = validateDownPayment(Number(downPayment), Number(product.price));
 
-    const dp         = f2(downPayment);
-    const loanAmount = f2(product.price - dp);
+    if (dpErr) {
+      return NextResponse.json({ error: dpErr }, { status: 400 });
+    }
 
-    // Safety net — should never reach here after validateDownPayment, but just in case
-    if (loanAmount <= 0)
+    const dp = f2(downPayment);
+    const loanAmount = f2(Number(product.price) - dp);
+
+    if (loanAmount <= 0) {
       return NextResponse.json(
-        { error: "Calculated loan amount is zero or negative. Please reduce your down payment." },
+        { error: "Loan amount must be greater than zero." },
         { status: 400 }
       );
+    }
 
-    // ── Duplicate active loan check ──
     const existing = await prisma.loanApplication.findFirst({
       where: {
-        userId:    current.id,
+        userId: current.id,
         productId,
-        status:    { in: ["PENDING","REVIEWING","APPROVED","DOWN_PAYMENT_PENDING","ACTIVE"] },
+        status: {
+          in: [
+            "PENDING",
+            "REVIEWING",
+            "APPROVED",
+            "DOWN_PAYMENT_PENDING",
+            "ACTIVE",
+          ],
+        },
       },
     });
-    if (existing)
+
+    if (existing) {
       return NextResponse.json(
-        { error: "You already have an active loan application for this product." },
+        { error: "You already have an active loan for this product." },
         { status: 409 }
       );
+    }
 
-    // ── Calculate EMI ──
-    const emi         = calcEmi(loanAmount, cfg.defaultInterest, tenure);
+    const interestRate = PLAN_INTEREST_MAP[tenure];
+    const emi = calcEmi(loanAmount, interestRate, tenure);
     const totalPayable = f2(emi * tenure + dp);
 
-    // ── Create application ──
     const loan = await prisma.loanApplication.create({
       data: {
-        userId:            current.id,
+        userId: current.id,
         productId,
-        productPrice:      product.price,
-        downPayment:       dp,
-        downPaymentPaid:   0,
+        productPrice: Number(product.price),
+        downPayment: dp,
+        downPaymentPaid: 0,
         loanAmount,
-        interestRate:      cfg.defaultInterest,
-        tenureMonths:      tenure,
-        monthlyEmi:        f2(emi),
+        interestRate,
+        tenureMonths: tenure,
+        monthlyEmi: f2(emi),
         totalPayable,
         firstEmiDelayDays: cfg.firstEmiDelayDays,
-        gracePeriodDays:   cfg.gracePeriodDays,
-        lateFee:           cfg.lateFee,
-        nidNumber:         nidNumber     ? nidNumber.trim() : null,
-        monthlyIncome:     monthlyIncome ? f2(monthlyIncome) : null,
-        jobType:           jobType       || null,
-        customerNote:      customerNote  || null,
-        status:            "PENDING",
-        documents:
-          Array.isArray(documents) && documents.length > 0
-            ? {
-                create: documents.map((d) => ({
-                  type:  d.type,
-                  url:   d.url,
-                  title: d.title || null,
-                })),
-              }
-            : undefined,
+        gracePeriodDays: cfg.gracePeriodDays,
+        lateFee: cfg.lateFee,
+        nidNumber: String(nidNumber).trim(),
+        monthlyIncome: f2(income),
+        jobType: String(jobType).trim(),
+        customerNote: customerNote?.trim() || null,
+        applicantName: String(applicantName).trim(),
+        applicantAddress: String(applicantAddress).trim(),
+        nomineeName: String(nomineeName).trim(),
+        nomineeRelation: String(nomineeRelation).trim(),
+        nomineePhone: String(nomineePhone).trim(),
+        nomineeAddress: String(nomineeAddress).trim(),
+        status: "PENDING",
+
+        documents: {
+          create: documents.map((doc) => {
+            const type = String(doc.type).toLowerCase();
+
+            return {
+              type: DOC_TYPE_MAP[type] || "OTHER",
+              url: doc.url,
+              fileId: doc.fileId || null,
+              title:
+                doc.title ||
+                type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+            };
+          }),
+        },
       },
       include: {
-        product:   { select: { id: true, name: true, price: true, mainImage: true } },
+        product: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            mainImage: true,
+          },
+        },
         documents: true,
       },
     });
@@ -195,34 +324,41 @@ export async function POST(req) {
       {
         message: "Loan application submitted successfully.",
         loan: {
-          id:           loan.id,
-          status:       loan.status,
-          productName:  loan.product.name,
+          id: loan.id,
+          status: loan.status,
+          productName: loan.product.name,
           productPrice: loan.productPrice,
-          downPayment:  loan.downPayment,
-          loanAmount:   loan.loanAmount,
+          downPayment: loan.downPayment,
+          loanAmount: loan.loanAmount,
           interestRate: loan.interestRate,
           tenureMonths: loan.tenureMonths,
-          monthlyEmi:   loan.monthlyEmi,
+          monthlyEmi: loan.monthlyEmi,
           totalPayable: loan.totalPayable,
-          appliedAt:    loan.appliedAt,
+          appliedAt: loan.appliedAt,
         },
       },
       { status: 201 }
     );
   } catch (err) {
     console.error("[POST /api/loans/apply]", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
   }
 }
-
-// ─── GET /api/loans/apply ─────────────────────────────────────────────────────
 
 export async function GET(req) {
   try {
     const current = await getCurrentUser();
-    if (!current)
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+    if (!current) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401 }
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
@@ -234,36 +370,65 @@ export async function GET(req) {
       },
       include: {
         product: {
-          select: { id: true, name: true, mainImage: true, slug: true },
+          select: {
+            id: true,
+            name: true,
+            mainImage: true,
+            slug: true,
+          },
         },
         installments: {
           select: {
-            id: true, installmentNo: true, dueDate: true,
-            amount: true, paidAmount: true, remainingAmount: true,
-            status: true, lateFee: true,
+            id: true,
+            installmentNo: true,
+            dueDate: true,
+            amount: true,
+            paidAmount: true,
+            remainingAmount: true,
+            status: true,
+            lateFee: true,
           },
-          orderBy: { installmentNo: "asc" },
+          orderBy: {
+            installmentNo: "asc",
+          },
+        },
+        documents: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            title: true,
+          },
         },
         payments: {
-          select: { id: true, amount: true, status: true, paymentType: true, paidAt: true },
-          orderBy: { createdAt: "desc" },
-          take: 5, // latest 5 for the user portal
+          where: {
+            status: "SUCCESS",
+          },
+          select: {
+            amount: true,
+          },
         },
       },
-      orderBy: { appliedAt: "desc" },
+      orderBy: {
+        appliedAt: "desc",
+      },
     });
 
-    // Attach totalCollected per loan
-    const enriched = loans.map((l) => ({
-      ...l,
-      totalCollected: l.payments
-        .filter((p) => p.status === "SUCCESS")
-        .reduce((sum, p) => sum + p.amount, 0),
-    }));
-
-    return NextResponse.json({ loans: enriched });
+    return NextResponse.json({
+      loans: loans.map((loan) => ({
+        ...loan,
+        totalCollected: f2(
+          loan.payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+        ),
+        payments: undefined,
+      })),
+    });
   } catch (err) {
     console.error("[GET /api/loans/apply]", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Internal server error." },
+      { status: 500 }
+    );
   }
 }
