@@ -16,6 +16,7 @@ import {
   UserCircle,
   Package,
   ListOrdered,
+  CreditCard,
 } from "lucide-react";
 
 // --- Utility Components ---
@@ -144,7 +145,25 @@ const AccountDropdownContent = ({ onClose }) => {
           <span>My Orders</span>
         </DropdownMenuItem>
 
+
+
+<DropdownMenuItem
+          onClick={() => {
+            router.push("/loans/details");
+            onClose && onClose();
+          }}
+          className="cursor-pointer"
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          <span>Loan Details</span>
+        </DropdownMenuItem>
+
+
         <DropdownMenuSeparator />
+
+
+
+
 
         <DropdownMenuItem
           className="text-destructive font-medium cursor-pointer focus:bg-destructive/10"

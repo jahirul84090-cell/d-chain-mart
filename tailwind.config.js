@@ -4,23 +4,17 @@ const { fontFamily } = require("tailwindcss/defaultTheme");
 module.exports = {
   darkMode: ["class"],
   content: [
-    "./app/**/*.{js,jsx}",
-    "./components/**/*.{js,jsx}",
-    "./pages/**/*.{js,jsx}",
+    "./src/pages/**/*.{js,jsx,ts,tsx,mdx}",
+    "./src/components/**/*.{js,jsx,ts,tsx,mdx}",
+    "./src/app/**/*.{js,jsx,ts,tsx,mdx}",
+    "./src/lib/**/*.{js,jsx,ts,tsx,mdx}",
+    "./src/**/*.{js,jsx,ts,tsx,mdx}",
   ],
   theme: {
     extend: {
       fontFamily: {
         sans: ["var(--font-jost)", ...fontFamily.sans],
         heading: ["var(--font-roboto-slab)", ...fontFamily.sans],
-      },
-      colors: {
-        primary: "var(--primary)",
-        foreground: "var(--foreground)",
-        background: "var(--background)",
-        muted: "var(--muted)",
-        border: "var(--border)",
-        ring: "var(--ring)",
       },
     },
   },

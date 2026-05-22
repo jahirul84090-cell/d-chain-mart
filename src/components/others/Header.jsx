@@ -211,7 +211,7 @@ export default function EcommerceHeader() {
       <DropdownMenuItem
         key={cat.slug}
         className="text-sm uppercase tracking-wide font-medium hover:bg-primary/10 hover:text-primary cursor-pointer px-4 py-2.5 rounded-md transition-colors"
-        onClick={() => handleNavigation(`/allproducts?categoryId=${cat.id}`)}
+        onClick={() => handleNavigation(`/category/${cat.slug}`)}
       >
         {cat.name}
       </DropdownMenuItem>
@@ -286,7 +286,7 @@ export default function EcommerceHeader() {
         <div
           className={`
             w-full bg-primary
-            border-t border-primary-foreground/10
+            
             transition-all duration-300
             ${
               scrolled
@@ -375,9 +375,9 @@ export default function EcommerceHeader() {
             </nav>
 
             {/* SHIPPING */}
-            <div className="hidden lg:flex items-center gap-1.5 bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground/90 backdrop-blur-sm">
+            <div className="hidden lg:flex items-center gap-1.5 bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
               <Truck className="h-3.5 w-3.5 shrink-0" />
-              Free Shipping Over $50
+              Free Shipping Over 1Ok
             </div>
           </div>
         </div>

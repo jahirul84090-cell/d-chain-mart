@@ -19,20 +19,19 @@ import Link from "next/link";
 
 // Logo component (optional, but good practice for branding)
 const Logo = () => (
-  <div className="flex items-center justify-center space-x-2 pb-2">
-    {/* Placeholder for a sophisticated SVG or image logo */}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-7 w-7 text-primary" // Using text-primary
-      viewBox="0 0 24 24"
-      fill="currentColor"
-    >
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 18.9c-3.15-1.29-5.46-4.57-6-8.24V6.44l6-2.67 6 2.67v5.22c-.54 3.67-2.85 6.95-6 8.24zM12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
-    </svg>
-    <span className="text-xl font-bold text-gray-900 dark:text-white tracking-wide">
-      A P P L I C A T I O N
-    </span>
-  </div>
+  <Link href="/" className="flex items-center justify-center gap-3 pb-4">
+   
+
+    <div className="text-left">
+      <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">
+        D Chin Mart
+      </h1>
+
+      <p className="text-xs font-medium text-primary">
+        Online Shopping & EMI Marketplace
+      </p>
+    </div>
+  </Link>
 );
 
 export default function Signup() {
@@ -334,7 +333,7 @@ export default function Signup() {
             <p>
               Already have an account?{" "}
               <Link
-                href="/auth/signin"
+                href="/auth/login"
                 // Using text-primary
                 className="font-semibold text-primary hover:underline"
               >

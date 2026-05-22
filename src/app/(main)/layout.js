@@ -1,26 +1,26 @@
-// app/(main)/layout.js
-
+import ClickToTop from "@/components/others/ClickTop";
 import Footer from "@/components/others/Footer";
 import EcommerceHeader from "@/components/others/Header";
 
-const siteName = process.env.SITE_NAME || "BD Store";
+const siteName = process.env.SITE_NAME || "D Chin Mart";
 const siteUrl = (
   process.env.BASE_URL ||
   process.env.NEXT_PUBLIC_BASE_URL ||
   process.env.NEXT_PUBLIC_SITE_URL ||
-  "https://example.com"
+  "https://dchinmart.com"
 ).replace(/\/+$/, "");
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
 
   title: {
-    template: "%s | BD Store",
-    default: "BD Store — Online Shopping in Bangladesh",
+    template: `%s | ${siteName}`,
+    default:
+      "D Chin Mart — Online Shopping in Bangladesh",
   },
 
   description:
-    "BD Store is your one-stop online shop in Bangladesh for quality products at the best price.",
+    "D Chin Mart is Bangladesh's trusted online store. Shop electronics, fashion, home goods & more with fast delivery across BD. Best prices guaranteed, cash on delivery and EMI facilities available.",
 
   applicationName: siteName,
 
@@ -40,33 +40,34 @@ export const metadata = {
     },
   },
 
-  // ✅ Open Graph (valid types for Next.js)
   openGraph: {
     type: "website",
     url: siteUrl,
     siteName,
-    title: "BD Store — Online Shopping in Bangladesh",
+    locale: "bn_BD",
+    title: "D Chin Mart — Online Shopping in Bangladesh",
     description:
-      "Shop top products in Bangladesh with fast delivery, secure checkout, and great deals.",
+      "Shop top products in Bangladesh with fast delivery, secure checkout & great deals. Electronics, fashion, home goods & more.",
     images: [
       {
-        url: `${siteUrl}/og-default.png`, // put this image in /public/og-default.png
+        url: `${siteUrl}/og-default.png`,
         width: 1200,
         height: 630,
-        alt: "BD Store",
+        alt: "D Chin Mart — Online Shopping Bangladesh",
+        type: "image/png",
       },
     ],
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "BD Store — Online Shopping in Bangladesh",
+    title:
+      "D Chin Mart | Online Shopping for Mobiles & Electronics",
     description:
-      "Shop top products in Bangladesh with fast delivery, secure checkout, and great deals.",
+      "Shop mobiles, laptops, electronics and accessories online in Bangladesh with COD and EMI facilities.",
     images: [`${siteUrl}/og-default.png`],
   },
 
-  // ✅ Helps Google understand your brand / site
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
@@ -74,29 +75,40 @@ export const metadata = {
 
   manifest: "/site.webmanifest",
 
-  // Optional: add keywords globally (page-level keywords still better)
-  keywords: ["BD Store", "ecommerce", "online shopping", "Bangladesh"],
-
-  // Optional: verification codes (set env and uncomment)
-  // verification: {
-  //   google: process.env.GOOGLE_SITE_VERIFICATION,
-  // },
-
-  // Optional: if you prefer no referrer leakage
-  // referrer: "origin-when-cross-origin",
+  keywords: [
+    "D Chin Mart",
+    "D Chin Mart Bangladesh",
+    "online shopping Bangladesh",
+    "mobile price in Bangladesh",
+    "laptop price in Bangladesh",
+    "electronics shop Bangladesh",
+    "EMI shopping Bangladesh",
+    "cash on delivery Bangladesh",
+    "buy now pay later Bangladesh",
+  ],
 };
 
 export default function MainLayout({ children }) {
-  // ✅ Organization JSON-LD (global)
   const orgJsonLd = {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "OnlineStore",
     name: siteName,
     url: siteUrl,
-    logo: `${siteUrl}/logo.png`, // add /public/logo.png
+    logo: `${siteUrl}/logo.png`,
+    image: `${siteUrl}/og-default.png`,
+    description:
+      "D Chin Mart is an online shopping platform in Bangladesh for mobiles, laptops, electronics, accessories and EMI shopping.",
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "BD",
+    },
+    areaServed: {
+      "@type": "Country",
+      name: "Bangladesh",
+    },
+    sameAs: [],
   };
 
-  // ✅ Website JSON-LD (global)
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -115,13 +127,20 @@ export default function MainLayout({ children }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
       />
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
 
       <EcommerceHeader />
-      <main className="main-content">{children}</main>
+<ClickToTop/>
+      <main className="main-content">
+      
+          {children}
+     
+      </main>
+
       <Footer />
     </>
   );

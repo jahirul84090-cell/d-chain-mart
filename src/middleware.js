@@ -64,6 +64,7 @@ export const config = {
     "/orders",
     "/checkout",
     "/cart",
+    "/loans/:path*",
     "/wishlist",
     "/api/:path*",
     "/auth/login",

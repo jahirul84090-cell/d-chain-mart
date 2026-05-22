@@ -1,124 +1,122 @@
+// app/(main)/product/[slug]/page.js
+
 import { notFound } from "next/navigation";
 import SingleProductDetail from "@/components/website/single product/SingleProduct";
 import RelatedProducts from "@/components/others/RelatedProducts";
 
-export const dynamic = "force-dynamic";
+// ─── Constants ──────────────────────────────────────────────────────────────
 
-// ✅ Safe base url resolver
+const SITE_NAME = process.env.SITE_NAME || "D Chin Mart";
+
 const getSiteUrl = () => {
   const raw =
     process.env.BASE_URL ||
     process.env.NEXT_PUBLIC_BASE_URL ||
     process.env.NEXT_PUBLIC_SITE_URL;
-
-  if (raw && /^https?:\/\//i.test(raw)) {
-    return raw.replace(/\/+$/, "");
-  }
-
-  return "https://example.com";
+  return raw && /^https?:\/\//i.test(raw)
+    ? raw.replace(/\/+$/, "")
+    : "https://dchinmart.com";
 };
 
+// Strip HTML tags and collapse whitespace
 const cleanText = (text = "") =>
   String(text)
     .replace(/<[^>]*>?/gm, "")
+    .replace(/\s+/g, " ")
     .trim();
 
-const getProductDetails = async (slug) => {
-  const baseUrl = getSiteUrl();
-
-  const apiUrl = `${baseUrl}/api/admin/product/slug/${encodeURIComponent(
-    slug
-  )}`;
-
-  try {
-    const res = await fetch(apiUrl, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    return data?.product || null;
-  } catch (error) {
-    console.log("getProductDetails error:", error);
-    return null;
-  }
+// Truncate to maxLen chars at word boundary
+const truncate = (text, maxLen = 155) => {
+  if (!text || text.length <= maxLen) return text;
+  return text.slice(0, maxLen).replace(/\s\S*$/, "") + "…";
 };
 
-export async function generateMetadata({ params }) {
-  const { slug } = params;
+// ─── Data Fetcher ────────────────────────────────────────────────────────────
 
-  const product = await getProductDetails(slug);
-
-  const siteName = process.env.SITE_NAME || "My Shop";
+async function getProductDetails(slug) {
   const baseUrl = getSiteUrl();
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/admin/product/slug/${encodeURIComponent(slug)}`,
+      {
+        // ISR: revalidate every hour. Remove if product data changes very frequently.
+        // Use cache: "no-store" only for cart/order pages, not product pages.
+        next: { revalidate: 3600 },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.product ?? null;
+  } catch (err) {
+    console.error("[product/slug] fetch error:", err);
+    return null;
+  }
+}
 
+// ─── Metadata ────────────────────────────────────────────────────────────────
+
+export async function generateMetadata({ params }) {
+  // Next.js 15: params is a Promise
+  const { slug } = await params;
+  const baseUrl = getSiteUrl();
   const metadataBase = new URL(baseUrl);
   const canonical = new URL(`/product/${slug}`, baseUrl);
 
+  const product = await getProductDetails(slug);
+
+  // ── Not found ────────────────────────────────────────────────────────────
   if (!product) {
     return {
       metadataBase,
       title: "Product Not Found",
       description: "The product you are looking for does not exist.",
-      robots: {
-        index: false,
-        follow: false,
-      },
-      alternates: {
-        canonical,
-      },
-      openGraph: {
-        type: "website",
-        url: canonical.toString(),
-        siteName,
-        title: "Product Not Found",
-        description: "The product you are looking for does not exist.",
-      },
+      alternates: { canonical: canonical.toString() },
+      robots: { index: false, follow: false },
     };
   }
 
-  const title = product?.name || "Product";
+  // ── Core fields ──────────────────────────────────────────────────────────
+  const title = product.name || "Product";
 
-  const description =
-    cleanText(product?.shortdescription) ||
-    `Buy ${title} online.`;
+  const rawDesc =
+    cleanText(product.shortdescription) ||
+    `Buy ${title} online at the best price in Bangladesh.`;
+  const description = truncate(rawDesc, 155);
 
   const images = (
-    product?.images?.length
-      ? product.images
-      : [{ url: product?.mainImage }]
+    product.images?.length ? product.images : [{ url: product.mainImage }]
   )
     .map((img) => img?.url)
     .filter(Boolean);
 
-  const keywords = Array.from(
-    new Set(
-      [
-        product?.name,
-        product?.category?.name,
-        "t-shirt",
-        "men t-shirt",
-        "online shopping",
-        "ecommerce",
-        "Bangladesh",
-      ].filter(Boolean)
-    )
-  );
+  const primaryImage = images[0] || `${baseUrl}/og-default.png`;
 
-  const isIndexable = product?.isActive !== false;
+  // Dynamic keywords: product name + category + brand (no hardcoded values)
+  const keywords = [
+    ...new Set(
+      [
+        product.name,
+        product.category?.name,
+        product.brand,
+        "online shopping Bangladesh",
+        "buy online BD",
+      ].filter(Boolean)
+    ),
+  ];
+
+  const isIndexable = product.isActive !== false;
 
   return {
     metadataBase,
-    title: {
-      default: title,
-      template: `%s | ${siteName}`,
-    },
+
+    // ── Title ──────────────────────────────────────────────────────────────
+    // Correct form: plain string. The layout's title.template handles " | D Chin Mart"
+    title,
     description,
     keywords,
+
     alternates: {
-      canonical,
+      canonical: canonical.toString(),
     },
 
     robots: {
@@ -133,147 +131,160 @@ export async function generateMetadata({ params }) {
       },
     },
 
+    // ── Open Graph ─────────────────────────────────────────────────────────
     openGraph: {
       type: "website",
       url: canonical.toString(),
-      siteName,
-      title,
+      siteName: SITE_NAME,
+      locale: "bn_BD",
+      title: `${title} | ${SITE_NAME}`,
       description,
-      images: (images.length
-        ? images
-        : [`${baseUrl}/og-default.png`]
-      )
-        .slice(0, 5)
-        .map((url) => ({
-          url,
-          width: 1200,
-          height: 630,
-          alt: product?.name || "Product image",
-        })),
+      images: images.slice(0, 4).map((url) => ({
+        url,
+        width: 1200,
+        height: 630,
+        alt: title,
+        type: "image/jpeg",
+      })),
     },
 
+    // ── Twitter ────────────────────────────────────────────────────────────
     twitter: {
       card: "summary_large_image",
-      title,
+      title: `${title} | ${SITE_NAME}`,
       description,
-      images: [images?.[0] || `${baseUrl}/og-default.png`],
+      images: [primaryImage],
     },
   };
 }
 
-const Page = async ({ params }) => {
-  const { slug } = params;
+// ─── Page ────────────────────────────────────────────────────────────────────
 
-  const productData = await getProductDetails(slug);
+export default async function ProductPage({ params }) {
+  // Next.js 15: params is a Promise
+  const { slug } = await params;
 
-  if (!productData) {
-    notFound();
-  }
+  const product = await getProductDetails(slug);
+  if (!product) notFound();
 
   const baseUrl = getSiteUrl();
-
-  const productUrl = `${baseUrl}/product/${productData.slug}`;
+  const productUrl = `${baseUrl}/product/${product.slug}`;
 
   const images = (
-    productData?.images?.length
-      ? productData.images
-      : [{ url: productData?.mainImage }]
+    product.images?.length ? product.images : [{ url: product.mainImage }]
   )
     .map((i) => i?.url)
     .filter(Boolean);
 
-  const inStock = (productData?.stockAmount ?? 0) > 0;
+  const inStock = (product.stockAmount ?? 0) > 0;
 
+  // Price valid for 30 days from build/render time
+  const priceValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
+  // ── Product JSON-LD ───────────────────────────────────────────────────────
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     "@id": productUrl,
-    name: productData?.name,
-    description:
-      cleanText(productData?.shortdescription) ||
-      productData?.name,
-    category: productData?.category?.name || "Product",
+    name: product.name,
+    description: truncate(cleanText(product.shortdescription), 300) || product.name,
+    category: product.category?.name || undefined,
     image: images,
-    sku: productData?.id,
+    sku: String(product.id || product._id || ""),
     url: productUrl,
+
+    // Brand — use actual brand field if present, else site name
+    ...(product.brand || SITE_NAME
+      ? {
+          brand: {
+            "@type": "Brand",
+            name: product.brand || SITE_NAME,
+          },
+        }
+      : {}),
+
     offers: {
       "@type": "Offer",
+      "@id": `${productUrl}#offer`,
       url: productUrl,
       priceCurrency: "BDT",
-      price: String(productData?.price),
+      price: String(product.price),
+      priceValidUntil,
       availability: inStock
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
+      seller: {
+        "@type": "Organization",
+        name: SITE_NAME,
+        url: baseUrl,
+      },
     },
+
+    // Aggregate rating — only include if data is valid
+    ...(product.averageRating && product.reviews?.length > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: String(
+              Math.min(5, Math.max(1, Number(product.averageRating)))
+            ),
+            reviewCount: String(product.reviews.length),
+            bestRating: "5",
+            worstRating: "1",
+          },
+        }
+      : {}),
   };
 
-  if (
-    productData?.averageRating &&
-    productData?.reviews?.length
-  ) {
-    productJsonLd.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: String(productData.averageRating),
-      reviewCount: String(productData.reviews.length),
-    };
-  }
+  // ── Breadcrumb JSON-LD ────────────────────────────────────────────────────
+  // Use category slug (not name) to build the URL — avoids encoding issues
+  const categorySlug = product.category?.slug;
+  const categoryName = product.category?.name;
+  const categoryUrl =
+    categorySlug
+      ? `${baseUrl}/category/${categorySlug}`
+      : categoryName
+      ? `${baseUrl}/category/${categoryName.toLowerCase().replace(/\s+/g, "-")}`
+      : null;
 
-  const categoryName = productData?.category?.name;
-
-  const categoryUrl = categoryName
-    ? `${baseUrl}/category/${encodeURIComponent(
-        categoryName.toLowerCase()
-      )}`
-    : null;
+  const breadcrumbItems = [
+    { position: 1, name: "Home", item: baseUrl },
+    categoryUrl
+      ? { position: 2, name: categoryName, item: categoryUrl }
+      : null,
+    {
+      position: categoryUrl ? 3 : 2,
+      name: product.name,
+      item: productUrl,
+    },
+  ].filter(Boolean);
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: baseUrl,
-      },
-      categoryUrl
-        ? {
-            "@type": "ListItem",
-            position: 2,
-            name: categoryName,
-            item: categoryUrl,
-          }
-        : null,
-      {
-        "@type": "ListItem",
-        position: categoryUrl ? 3 : 2,
-        name: productData?.name,
-        item: productUrl,
-      },
-    ].filter(Boolean),
+    itemListElement: breadcrumbItems.map((crumb) => ({
+      "@type": "ListItem",
+      position: crumb.position,
+      name: crumb.name,
+      item: crumb.item,
+    })),
   };
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(productJsonLd),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
-
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbJsonLd),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-
-      <SingleProductDetail productData={productData} />
-      <RelatedProducts productId={productData?.id} />
+      <SingleProductDetail productData={product} />
+      <RelatedProducts productId={product?.id} />
     </>
   );
-};
-
-export default Page;
+}

@@ -21,7 +21,7 @@ const getTopCategories = async () => {
 const CategoryCard = ({ category }) => {
   return (
     <Link
-      href={`/allproducts?categoryId=${category.id}`}
+      href={`/category/${category.slug}`}
       className="flex flex-col items-center p-4 text-center group cursor-pointer transition-transform duration-300 transform hover:scale-105 "
     >
       <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-3  flex items-center justify-center shadow-sm  transition-shadow duration-300">
