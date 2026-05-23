@@ -39,6 +39,8 @@ model User {
   lastSessionInvalidation DateTime?
 
   loanApplications        LoanApplication[]
+  inventoryProducts InventoryProduct[] @relation("InventoryOwner")
+inventorySales    InventorySale[]    @relation("InventorySaleOwner")
 }
 
 model Account {
@@ -558,4 +560,57 @@ model Expense {
 
   @@index([expenseAt])
   @@index([category])
+}
+
+
+
+
+
+
+
+model InventoryProduct {
+  id        String   @id @default(uuid())
+  ownerId   String
+
+  brandName String   @db.VarChar(100)
+  model     String   @db.VarChar(100)
+  variant   String?  @db.VarChar(100)
+
+  buyPrice  Float
+  sellPrice Float
+  stock     Int      @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User @relation("InventoryOwner", fields: [ownerId], references: [id])
+  sales InventorySale[]
+
+  @@index([ownerId])
+  @@index([isActive])
+}
+
+model InventorySale {
+  id        String @id @default(uuid())
+  productId String
+  ownerId   String
+
+  qty       Int
+  sellPrice Float
+  buyPrice  Float
+  profit    Float
+
+  month     Int
+  year      Int
+  note      String? @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+
+  product InventoryProduct @relation(fields: [productId], references: [id])
+  owner   User             @relation("InventorySaleOwner", fields: [ownerId], references: [id])
+
+  @@index([ownerId])
+  @@index([productId])
+  @@index([month, year])
 }
