@@ -1,4 +1,5 @@
 import ClickToTop from "@/components/others/ClickTop";
+import FloatingMessenger from "@/components/others/FloatingMessenger";
 import Footer from "@/components/others/Footer";
 import EcommerceHeader from "@/components/others/Header";
 
@@ -135,6 +136,7 @@ export default function MainLayout({ children }) {
 
       <EcommerceHeader />
 <ClickToTop/>
+<FloatingMessenger/>
       <main className="main-content overflow-x-hidden">
       
           {children}
