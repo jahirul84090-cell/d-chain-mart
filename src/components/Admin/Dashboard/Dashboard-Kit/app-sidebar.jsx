@@ -13,6 +13,8 @@ import {
   ListOrdered,
   ShoppingBasket,
   Users,
+  Wallet,
+  Wallet2Icon,
 } from "lucide-react";
 
 import { NavUser } from "./nav-user";
@@ -91,6 +93,18 @@ export const data = {
       title: "Delivery Fees",
       url: "/dashboard/delivery-fees",
       icon: DollarSign,
+      isActive: true,
+    },
+    {
+      title: "Loans",
+      url: "/dashboard/loans",
+      icon: Wallet,
+      isActive: true,
+    },
+      {
+      title: "Accounting",
+      url: "/dashboard/inventory",
+      icon: Wallet2Icon,
       isActive: true,
     },
     {
