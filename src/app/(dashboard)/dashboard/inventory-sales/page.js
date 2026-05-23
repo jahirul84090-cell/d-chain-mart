@@ -40,6 +40,8 @@ import {
   Banknote,
   RefreshCw,
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const tk = (n) =>
@@ -69,19 +71,118 @@ function KPI({ label, value, color, icon: Icon }) {
   return (
     <div className="rounded-2xl border bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center gap-3">
-        <div
-          className={`flex h-9 w-9 items-center justify-center rounded-xl ${color}`}
-        >
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${color}`}>
           <Icon className="h-4 w-4" />
         </div>
-
-        <div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            {label}
-          </p>
-          <p className="text-lg font-black">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="text-lg font-black leading-tight">{value}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Mobile sale card ──────────────────────────────────────── */
+function SaleCard({ sale, onDelete, deleting }) {
+  const [open, setOpen] = useState(false);
+  const profitColor =
+    sale.profit >= 0
+      ? "text-emerald-600 dark:text-emerald-400"
+      : "text-red-600 dark:text-red-400";
+
+  const monthLabel =
+    MONTHS.find((m) => m.v === sale.month)?.l?.slice(0, 3) ?? "";
+
+  return (
+    <div className="rounded-2xl border bg-white dark:border-slate-700 dark:bg-slate-900">
+      {/* Always-visible row */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-start gap-3 p-4 text-left"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+          <ShoppingCart className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-bold leading-tight">
+                {sale.product?.brandName} {sale.product?.model}
+              </p>
+              {sale.product?.variant && (
+                <p className="truncate text-xs text-slate-500">{sale.product.variant}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className={`text-sm font-black ${profitColor}`}>
+                {tk(sale.profit)}
+              </span>
+              {open ? (
+                <ChevronUp className="h-4 w-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-400" />
+              )}
+            </div>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span>
+              Qty <span className="font-semibold text-slate-700 dark:text-slate-200">{sale.qty}</span>
+            </span>
+            <span>
+              Sell <span className="font-semibold text-slate-700 dark:text-slate-200">{tk(sale.sellPrice)}</span>
+            </span>
+            <span>
+              {monthLabel} {sale.year}
+            </span>
+          </div>
+        </div>
+      </button>
+
+      {/* Expanded details */}
+      {open && (
+        <div className="border-t px-4 pb-4 dark:border-slate-700">
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-slate-500">Revenue</dt>
+              <dd className="font-semibold text-blue-600 dark:text-blue-400">{tk(sale.revenue)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Buy Cost</dt>
+              <dd className="font-semibold text-amber-600 dark:text-amber-400">{tk(sale.cost)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Buy Price</dt>
+              <dd className="font-semibold">{tk(sale.buyPrice)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-slate-500">Margin</dt>
+              <dd className={`font-bold ${profitColor}`}>{pct(sale.margin)}</dd>
+            </div>
+            {sale.note && (
+              <div className="col-span-2">
+                <dt className="text-xs text-slate-500">Note</dt>
+                <dd className="text-slate-600 dark:text-slate-300">{sale.note}</dd>
+              </div>
+            )}
+          </dl>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-4 w-full gap-2 text-red-500 hover:text-red-600 dark:text-red-400"
+            onClick={() => onDelete(sale.id)}
+            disabled={deleting === sale.id}
+          >
+            {deleting === sale.id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Delete & Restore Stock
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -118,7 +219,6 @@ export default function SalesPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError("");
-
     try {
       const salesQuery =
         filterMonth !== "all"
@@ -131,17 +231,9 @@ export default function SalesPage() {
         fetch("/api/admin/inventory/products"),
         fetch(`/api/admin/inventory/sales${salesQuery}`),
       ]);
-
       const [pData, sData] = await Promise.all([pRes.json(), sRes.json()]);
-
-      if (!pRes.ok) {
-        throw new Error(pData.error || "Failed to load products.");
-      }
-
-      if (!sRes.ok) {
-        throw new Error(sData.error || "Failed to load sales.");
-      }
-
+      if (!pRes.ok) throw new Error(pData.error || "Failed to load products.");
+      if (!sRes.ok) throw new Error(sData.error || "Failed to load sales.");
       setProducts(pData.products || []);
       setSales(sData.sales || []);
       setTotals(sData.totals || {});
@@ -152,9 +244,7 @@ export default function SalesPage() {
     }
   }, [filterMonth, filterYear]);
 
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const openForm = () => {
     setFProduct("");
@@ -169,39 +259,21 @@ export default function SalesPage() {
 
   const onProductChange = (id) => {
     setFProduct(id);
-
     const product = products.find((item) => item.id === id);
-
-    if (product) {
-      setFPrice(String(product.sellPrice));
-    }
+    if (product) setFPrice(String(product.sellPrice));
   };
 
   const handleSave = async () => {
     setFormErr("");
     setSaving(true);
-
     try {
-      if (!fProduct) {
-        setFormErr("Please select a product.");
-        return;
-      }
-
-      if (!fQty || parseInt(fQty, 10) <= 0) {
-        setFormErr("Qty must be greater than 0.");
-        return;
-      }
-
-      if (!fPrice || parseFloat(fPrice) <= 0) {
-        setFormErr("Sell price must be greater than 0.");
-        return;
-      }
+      if (!fProduct) { setFormErr("Please select a product."); return; }
+      if (!fQty || parseInt(fQty, 10) <= 0) { setFormErr("Qty must be greater than 0."); return; }
+      if (!fPrice || parseFloat(fPrice) <= 0) { setFormErr("Sell price must be greater than 0."); return; }
 
       const res = await fetch("/api/admin/inventory/sales", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: fProduct,
           qty: parseInt(fQty, 10),
@@ -211,13 +283,8 @@ export default function SalesPage() {
           note: fNote,
         }),
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to record sale.");
-      }
-
+      if (!res.ok) throw new Error(data.error || "Failed to record sale.");
       setShowForm(false);
       loadAll();
     } catch (e) {
@@ -229,14 +296,9 @@ export default function SalesPage() {
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this sale and restore stock?")) return;
-
     setDeleting(id);
-
     try {
-      await fetch(`/api/admin/inventory/sales/${id}`, {
-        method: "DELETE",
-      });
-
+      await fetch(`/api/admin/inventory/sales/${id}`, { method: "DELETE" });
       loadAll();
     } finally {
       setDeleting(null);
@@ -245,62 +307,60 @@ export default function SalesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="border-b bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+
+      {/* ── Top nav bar ─────────────────────────────────────── */}
+      <div className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
+        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
               <Link href="/dashboard/inventory">
-                <Button variant="ghost" size="sm" className="gap-1.5">
+                <Button variant="ghost" size="sm" className="gap-1 px-2">
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  Back
+                  <span className="hidden sm:inline">Back</span>
                 </Button>
               </Link>
 
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600">
-                <ShoppingCart className="h-5 w-5 text-white" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600">
+                <ShoppingCart className="h-4 w-4 text-white" />
               </div>
 
               <div>
-                <h1 className="text-lg font-black">Sales</h1>
-                <p className="text-xs text-slate-500">
+                <h1 className="text-base font-black leading-tight sm:text-lg">Sales</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {sales.length} transactions
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link href="/dashboard/inventory-reports">
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5">
                   <BarChart3 className="h-3.5 w-3.5" />
-                  Reports
+                  <span className="hidden sm:inline">Reports</span>
                 </Button>
               </Link>
 
               <Button
                 size="sm"
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
                 onClick={openForm}
               >
                 <Plus className="h-3.5 w-3.5" />
-                Record Sale
+                <span className="hidden xs:inline">Record</span>
+                <span className="hidden sm:inline"> Sale</span>
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadAll}
-                disabled={loading}
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-                />
+              <Button variant="outline" size="sm" onClick={loadAll} disabled={loading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">
+      {/* ── Main content ─────────────────────────────────────── */}
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
+
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -308,6 +368,7 @@ export default function SalesPage() {
           </Alert>
         )}
 
+        {/* KPIs */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <KPI
             label="Total Revenue"
@@ -315,21 +376,18 @@ export default function SalesPage() {
             icon={Banknote}
             color="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
           />
-
           <KPI
             label="Total Buy Cost"
             value={tk(totals.cost)}
             icon={Package}
             color="bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
           />
-
           <KPI
             label="Total Profit"
             value={tk(totals.profit)}
             icon={TrendingUp}
             color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
           />
-
           <KPI
             label="Units Sold"
             value={totals.units || 0}
@@ -338,38 +396,65 @@ export default function SalesPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="h-8 w-36 text-sm">
+            <SelectTrigger className="h-8 w-32 text-sm sm:w-36">
               <SelectValue placeholder="Month" />
             </SelectTrigger>
-
             <SelectContent>
               <SelectItem value="all">All Months</SelectItem>
-              {MONTHS.map((month) => (
-                <SelectItem key={month.v} value={String(month.v)}>
-                  {month.l}
-                </SelectItem>
+              {MONTHS.map((m) => (
+                <SelectItem key={m.v} value={String(m.v)}>{m.l}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select value={filterYear} onValueChange={setFilterYear}>
-            <SelectTrigger className="h-8 w-28 text-sm">
+            <SelectTrigger className="h-8 w-24 text-sm sm:w-28">
               <SelectValue />
             </SelectTrigger>
-
             <SelectContent>
-              {[2024, 2025, 2026].map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {year}
-                </SelectItem>
+              {[2024, 2025, 2026].map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        {/* ── Mobile: sale cards (hidden md+) */}
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-7 w-7 animate-spin text-slate-400" />
+            </div>
+          ) : sales.length === 0 ? (
+            <div className="rounded-2xl border bg-white py-16 text-center dark:border-slate-700 dark:bg-slate-900">
+              <ShoppingCart className="mx-auto mb-3 h-10 w-10 opacity-30" />
+              <p className="text-sm text-slate-400">No sales recorded yet.</p>
+              <Button
+                size="sm"
+                className="mt-4 gap-2 bg-emerald-600 hover:bg-emerald-700"
+                onClick={openForm}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Record First Sale
+              </Button>
+            </div>
+          ) : (
+            sales.map((sale) => (
+              <SaleCard
+                key={sale.id}
+                sale={sale}
+                onDelete={handleDelete}
+                deleting={deleting}
+              />
+            ))
+          )}
+        </div>
+
+        {/* ── Desktop: table (hidden below md) */}
+        <div className="hidden overflow-hidden rounded-2xl border bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900 md:block">
           <div className="overflow-x-auto">
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -379,7 +464,6 @@ export default function SalesPage() {
               <div className="py-20 text-center text-slate-400">
                 <ShoppingCart className="mx-auto mb-3 h-10 w-10 opacity-30" />
                 <p className="text-sm">No sales recorded yet.</p>
-
                 <Button
                   size="sm"
                   className="mt-4 gap-2 bg-emerald-600 hover:bg-emerald-700"
@@ -406,70 +490,33 @@ export default function SalesPage() {
                     <TableHead />
                   </TableRow>
                 </TableHeader>
-
                 <TableBody>
                   {sales.map((sale) => {
                     const profitColor =
                       sale.profit >= 0
                         ? "text-emerald-600 dark:text-emerald-400"
                         : "text-red-600 dark:text-red-400";
-
                     return (
                       <TableRow key={sale.id} className="group">
                         <TableCell>
                           <div className="font-semibold">
                             {sale.product?.brandName} {sale.product?.model}
                           </div>
-
                           {sale.product?.variant && (
-                            <div className="text-xs text-slate-500">
-                              {sale.product.variant}
-                            </div>
+                            <div className="text-xs text-slate-500">{sale.product.variant}</div>
                           )}
                         </TableCell>
-
-                        <TableCell className="text-right font-semibold">
-                          {sale.qty}
-                        </TableCell>
-
-                        <TableCell className="text-right text-slate-500">
-                          {tk(sale.buyPrice)}
-                        </TableCell>
-
-                        <TableCell className="text-right font-medium">
-                          {tk(sale.sellPrice)}
-                        </TableCell>
-
-                        <TableCell className="text-right font-semibold">
-                          {tk(sale.revenue)}
-                        </TableCell>
-
-                        <TableCell className="text-right text-amber-600">
-                          {tk(sale.cost)}
-                        </TableCell>
-
-                        <TableCell
-                          className={`text-right font-bold ${profitColor}`}
-                        >
-                          {tk(sale.profit)}
-                        </TableCell>
-
-                        <TableCell className={`text-right ${profitColor}`}>
-                          {pct(sale.margin)}
-                        </TableCell>
-
+                        <TableCell className="text-right font-semibold">{sale.qty}</TableCell>
+                        <TableCell className="text-right text-slate-500">{tk(sale.buyPrice)}</TableCell>
+                        <TableCell className="text-right font-medium">{tk(sale.sellPrice)}</TableCell>
+                        <TableCell className="text-right font-semibold">{tk(sale.revenue)}</TableCell>
+                        <TableCell className="text-right text-amber-600">{tk(sale.cost)}</TableCell>
+                        <TableCell className={`text-right font-bold ${profitColor}`}>{tk(sale.profit)}</TableCell>
+                        <TableCell className={`text-right ${profitColor}`}>{pct(sale.margin)}</TableCell>
                         <TableCell className="text-sm">
-                          {MONTHS.find((month) => month.v === sale.month)?.l?.slice(
-                            0,
-                            3
-                          )}{" "}
-                          {sale.year}
+                          {MONTHS.find((m) => m.v === sale.month)?.l?.slice(0, 3)} {sale.year}
                         </TableCell>
-
-                        <TableCell className="text-xs text-slate-400">
-                          {sale.note || "—"}
-                        </TableCell>
-
+                        <TableCell className="text-xs text-slate-400">{sale.note || "—"}</TableCell>
                         <TableCell>
                           <Button
                             size="sm"
@@ -495,59 +542,54 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* ── Record Sale Dialog ───────────────────────────────── */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="mx-4 max-h-[90dvh] w-full overflow-y-auto rounded-2xl sm:mx-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Record Sale</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
+            {/* Product select */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Product *</Label>
-
               <Select value={fProduct} onValueChange={onProductChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
-
                 <SelectContent>
                   {products
-                    .filter((product) => product.stock > 0)
-                    .map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.brandName} {product.model}{" "}
-                        {product.variant ? `(${product.variant})` : ""} — Stock:{" "}
-                        {product.stock}
+                    .filter((p) => p.stock > 0)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.brandName} {p.model}
+                        {p.variant ? ` (${p.variant})` : ""} — Stock: {p.stock}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Qty + Sell price */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Qty *</Label>
                 <Input
                   type="number"
+                  inputMode="numeric"
                   value={fQty}
                   onChange={(e) => setFQty(e.target.value)}
                   min="1"
                   max={selectedProduct?.stock}
                 />
               </div>
-
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">
-                  Sell Price (৳) *
-                </Label>
-
+                <Label className="text-xs font-semibold">Sell Price (৳) *</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">
-                    ৳
-                  </span>
-
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">৳</span>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     value={fPrice}
                     onChange={(e) => setFPrice(e.target.value)}
                     className="pl-7"
@@ -557,30 +599,26 @@ export default function SalesPage() {
               </div>
             </div>
 
+            {/* Month + Year */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Month *</Label>
-
                 <Select value={fMonth} onValueChange={setFMonth}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-
                   <SelectContent>
-                    {MONTHS.map((month) => (
-                      <SelectItem key={month.v} value={String(month.v)}>
-                        {month.l}
-                      </SelectItem>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m.v} value={String(m.v)}>{m.l}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Year *</Label>
-
                 <Input
                   type="number"
+                  inputMode="numeric"
                   value={fYear}
                   onChange={(e) => setFYear(e.target.value)}
                   min="2020"
@@ -589,6 +627,7 @@ export default function SalesPage() {
               </div>
             </div>
 
+            {/* Note */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Note (optional)</Label>
               <Input
@@ -598,6 +637,7 @@ export default function SalesPage() {
               />
             </div>
 
+            {/* Live preview */}
             {selectedProduct && previewQty > 0 && previewPrice > 0 && (
               <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/40">
                 {[
@@ -634,15 +674,10 @@ export default function SalesPage() {
             )}
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowForm(false)}
-            >
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
-
             <Button
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700"
