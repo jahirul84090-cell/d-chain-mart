@@ -141,7 +141,7 @@ export default function MainLayout({ children }) {
      
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 }
