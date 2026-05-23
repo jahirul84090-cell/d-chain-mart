@@ -136,7 +136,7 @@ export default function MainLayout({ children }) {
 
       <EcommerceHeader />
 <ClickToTop/>
-<FloatingMessenger/>
+{/* <FloatingMessenger/> */}
       <main className="main-content overflow-x-hidden">
       
           {children}
