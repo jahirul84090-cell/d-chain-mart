@@ -135,7 +135,7 @@ export default function MainLayout({ children }) {
 
       <EcommerceHeader />
 <ClickToTop/>
-      <main className="main-content">
+      <main className="main-content overflow-x-hidden">
       
           {children}
      

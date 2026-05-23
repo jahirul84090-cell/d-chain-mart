@@ -31,7 +31,7 @@ const ClickToTop = () => {
       size="icon"
       onClick={scrollToTop}
       aria-label="Scroll to top"
-      className={`fixed bottom-6 left-6 z-[9999] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 transition-all duration-300 hover:-translate-y-1 hover:bg-primary/90 active:scale-95 ${
+      className={`fixed bottom-12 left-6 z-[9999] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 transition-all duration-300 hover:-translate-y-1 hover:bg-primary/90 active:scale-95 ${
         isVisible
           ? "visible translate-y-0 opacity-100"
           : "invisible translate-y-8 opacity-0"
