@@ -43,6 +43,9 @@ import { useCartWithSession } from "@/lib/cartStore";
 import useWishlistStore from "@/lib/wishlistStore";
 import MergedProductCard from "@/components/productCard/MargedProductCard";
 
+// Max price constant — change if your products go higher
+const MAX_PRICE = 200000;
+
 const ProductSkeleton = ({ viewMode }) => (
   <div
     className={cn(
@@ -109,7 +112,6 @@ const FilterPanel = ({
             </span>
           )}
         </div>
-
         {activeCount > 0 && (
           <button
             onClick={onClearFilters}
@@ -126,15 +128,13 @@ const FilterPanel = ({
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
           Price Range
         </p>
-
         <Slider
           value={displayPriceRange}
-          max={10000}
-          step={10}
+          max={MAX_PRICE}
+          step={500}
           onValueChange={handlePriceRangeChange}
           className="[&_[role=slider]]:border-2 [&_[role=slider]]:border-primary [&_[role=slider]]:shadow-md [&_[role=slider]]:bg-background [&_.bg-primary]:bg-primary"
         />
-
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1.5 rounded-lg border border-primary/20">
             ৳ {displayPriceRange[0].toLocaleString()}
@@ -150,7 +150,6 @@ const FilterPanel = ({
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
           Categories
         </p>
-
         <div className="space-y-1.5">
           {categories.map((cat) => (
             <div
@@ -169,7 +168,6 @@ const FilterPanel = ({
                 onCheckedChange={() => handleCategoryToggle(cat.id)}
                 className="border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
-
               <Label
                 htmlFor={`cat-${cat.id}`}
                 className="cursor-pointer text-sm text-foreground flex-1 leading-none select-none"
@@ -187,7 +185,6 @@ const FilterPanel = ({
         <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-muted-foreground">
           Minimum Rating
         </p>
-
         <RadioGroup
           value={String(minRating)}
           onValueChange={(v) => setMinRating(Number(v))}
@@ -209,7 +206,6 @@ const FilterPanel = ({
                 id={`rating-${r}`}
                 className="border-primary text-primary"
               />
-
               <Label
                 htmlFor={`rating-${r}`}
                 className="cursor-pointer flex items-center gap-2 flex-1"
@@ -240,64 +236,50 @@ export default function AllProducts() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Price range — only apply filter if user has changed from defaults
   const [displayPriceRange, setDisplayPriceRange] = useState([
     Number(searchParams.get("minPrice")) || 0,
-    Number(searchParams.get("maxPrice")) || 10000,
+    Number(searchParams.get("maxPrice")) || MAX_PRICE,
   ]);
   const debouncedPriceRange = useDebounce(displayPriceRange, 300);
 
   const [minRating, setMinRating] = useState(
     Number(searchParams.get("minRating")) || 0
   );
-
   const [categories, setCategories] = useState([]);
-
   const [selectedCategories, setSelectedCategories] = useState(
     searchParams.getAll("categoryId") || []
   );
-
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-
   const [sortOption, setSortOption] = useState(
     searchParams.get("sort") || "newest"
   );
-
   const [viewMode, setViewMode] = useState(searchParams.get("view") || "grid");
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-
   const [currentPage, setCurrentPage] = useState(
     Number(searchParams.get("page")) || 1
   );
-
-  const [selections, setSelections] = useState({});
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const { addToCart } = useCartWithSession();
-  const { wishlist, fetchWishlist, toggleWishlist } = useWishlistStore();
-
+  const { wishlist, fetchWishlist } = useWishlistStore();
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const updateUrlParams = useCallback(
     (updates = {}) => {
       const params = new URLSearchParams(searchParams.toString());
-
       Object.entries(updates).forEach(([key, value]) => {
         if (Array.isArray(value)) {
           params.delete(key);
-
           value.forEach((item) => {
             if (item !== "" && item !== null && item !== undefined) {
               params.append(key, String(item));
             }
           });
-
           return;
         }
-
         if (
           value === "" ||
           value === null ||
@@ -311,9 +293,7 @@ export default function AllProducts() {
           params.set(key, String(value));
         }
       });
-
       const queryString = params.toString();
-
       router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
         scroll: false,
       });
@@ -325,12 +305,7 @@ export default function AllProducts() {
     (value) => {
       setDisplayPriceRange(value);
       setCurrentPage(1);
-
-      updateUrlParams({
-        minPrice: value[0],
-        maxPrice: value[1],
-        page: 1,
-      });
+      updateUrlParams({ minPrice: value[0], maxPrice: value[1], page: 1 });
     },
     [updateUrlParams]
   );
@@ -339,39 +314,33 @@ export default function AllProducts() {
     fetchWishlist();
   }, [fetchWishlist]);
 
+  // Fetch categories — always unblock product fetch via finally
   useEffect(() => {
     async function fetchCategories() {
       try {
         const res = await fetch("/api/admin/categories");
-
         if (!res.ok) throw new Error();
-
         const data = await res.json();
-
         setCategories(data.categories || []);
-
         if (!hasInitialized) {
           const urlCategoryIds = searchParams.getAll("categoryId");
-
           if (urlCategoryIds.length > 0) {
-            const validCategoryIds = urlCategoryIds.filter((id) =>
-              data.categories?.some((category) => category.id === id)
+            const validIds = urlCategoryIds.filter((id) =>
+              data.categories?.some((c) => c.id === id)
             );
-
-            setSelectedCategories(validCategoryIds);
+            setSelectedCategories(validIds);
           }
-
-          setHasInitialized(true);
         }
       } catch (error) {
         console.error(error);
-        setHasInitialized(true);
+      } finally {
+        setHasInitialized(true); // always unblock
       }
     }
-
     fetchCategories();
   }, [searchParams, hasInitialized]);
 
+  // Fetch products — no price filter sent if at defaults
   useEffect(() => {
     if (!hasInitialized) return;
 
@@ -379,41 +348,33 @@ export default function AllProducts() {
       setLoading(true);
 
       const params = new URLSearchParams({
-        search: debouncedSearchQuery,
-        minPrice: debouncedPriceRange[0],
-        maxPrice: debouncedPriceRange[1],
-        minRating,
         page: currentPage,
         sortBy: sortOption,
+        isActive: true,
       });
 
+      // Only send search if not empty
+      if (debouncedSearchQuery) params.set("search", debouncedSearchQuery);
+
+      // Only send price filter if user changed from defaults
+      if (debouncedPriceRange[0] > 0)
+        params.set("minPrice", debouncedPriceRange[0]);
+      if (debouncedPriceRange[1] < MAX_PRICE)
+        params.set("maxPrice", debouncedPriceRange[1]);
+
+      // Only send rating filter if user selected one
+      if (minRating > 0) params.set("minRating", minRating);
+
+      // Categories
       selectedCategories.forEach((id) => params.append("categoryId", id));
 
       try {
-        const res = await fetch(`/api/admin/product?${params}&isActive=true`);
+        const res = await fetch(`/api/admin/product?${params}`);
         const data = await res.json();
-
         if (res.ok) {
           setProducts(data.products || []);
           setTotalProducts(data.total || 0);
           setTotalPages(data.totalPages || 1);
-
-          setSelections((prev) => {
-            const next = { ...prev };
-
-            data.products?.forEach((product) => {
-              if (!next[product.id]) {
-                next[product.id] = {
-                  selectedSize:
-                    product.availableSizes?.split(",")[0] ?? null,
-                  selectedColor:
-                    product.availableColors?.split(",")[0] ?? null,
-                };
-              }
-            });
-
-            return next;
-          });
         } else {
           setProducts([]);
         }
@@ -438,47 +399,29 @@ export default function AllProducts() {
   const handleCategoryToggle = (id) => {
     setSelectedCategories((prev) => {
       const next = prev.includes(id)
-        ? prev.filter((categoryId) => categoryId !== id)
+        ? prev.filter((cid) => cid !== id)
         : [...prev, id];
-
-      updateUrlParams({
-        categoryId: next,
-        page: 1,
-      });
-
+      updateUrlParams({ categoryId: next, page: 1 });
       return next;
     });
-
     setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
-    setDisplayPriceRange([0, 10000]);
+    setDisplayPriceRange([0, MAX_PRICE]);
     setMinRating(0);
     setSelectedCategories([]);
     setSearchQuery("");
     setCurrentPage(1);
     setSortOption("newest");
-
-    router.replace(pathname, {
-      scroll: false,
-    });
+    router.replace(pathname, { scroll: false });
   };
-
-  const handleSelectionChange = (productId, field, value) =>
-    setSelections((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [field]: value,
-      },
-    }));
 
   const currentCategoryNames = useMemo(
     () =>
       categories
-        .filter((category) => selectedCategories.includes(category.id))
-        .map((category) => category.name),
+        .filter((c) => selectedCategories.includes(c.id))
+        .map((c) => c.name),
     [categories, selectedCategories]
   );
 
@@ -489,54 +432,41 @@ export default function AllProducts() {
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
-
     const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
-
     const visible = pages.filter(
       (page) =>
         page === 1 ||
         page === totalPages ||
         Math.abs(page - currentPage) <= 1
     );
-
     return (
       <div className="flex justify-center items-center gap-1.5 mt-10 flex-wrap">
         <Button
           variant="outline"
           size="icon"
           onClick={() => {
-            const nextPage = currentPage - 1;
-
-            setCurrentPage(nextPage);
-
-            updateUrlParams({
-              page: nextPage,
-            });
+            const next = currentPage - 1;
+            setCurrentPage(next);
+            updateUrlParams({ page: next });
           }}
           disabled={currentPage === 1}
           className="h-9 w-9 rounded-xl border-border hover:border-primary hover:text-primary disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-
         {visible.map((page, index) => {
           const prev = visible[index - 1];
-
           return (
             <span key={page} className="flex items-center gap-1.5">
               {prev && page - prev > 1 && (
                 <span className="text-muted-foreground text-sm px-1">…</span>
               )}
-
               <Button
                 variant={currentPage === page ? "default" : "outline"}
                 size="icon"
                 onClick={() => {
                   setCurrentPage(page);
-
-                  updateUrlParams({
-                    page,
-                  });
+                  updateUrlParams({ page });
                 }}
                 className={cn(
                   "h-9 w-9 rounded-xl text-sm font-medium transition-all",
@@ -550,18 +480,13 @@ export default function AllProducts() {
             </span>
           );
         })}
-
         <Button
           variant="outline"
           size="icon"
           onClick={() => {
-            const nextPage = currentPage + 1;
-
-            setCurrentPage(nextPage);
-
-            updateUrlParams({
-              page: nextPage,
-            });
+            const next = currentPage + 1;
+            setCurrentPage(next);
+            updateUrlParams({ page: next });
           }}
           disabled={currentPage === totalPages}
           className="h-9 w-9 rounded-xl border-border hover:border-primary hover:text-primary disabled:opacity-40"
@@ -582,16 +507,13 @@ export default function AllProducts() {
               "radial-gradient(circle at 70% 50%, white 0%, transparent 60%)",
           }}
         />
-
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10 relative z-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5">
             Our Store
           </p>
-
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             Product Catalog
           </h1>
-
           <p className="mt-2 text-sm max-w-md leading-relaxed">
             Explore our full collection — filter, sort, and discover exactly
             what you need.
@@ -610,11 +532,7 @@ export default function AllProducts() {
                 setMinRating={(value) => {
                   setMinRating(value);
                   setCurrentPage(1);
-
-                  updateUrlParams({
-                    minRating: value,
-                    page: 1,
-                  });
+                  updateUrlParams({ minRating: value, page: 1 });
                 }}
                 categories={categories}
                 selectedCategories={selectedCategories}
@@ -628,34 +546,22 @@ export default function AllProducts() {
             <div className="bg-white rounded-2xl border border-border shadow-sm px-4 py-3 flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-
                 <Input
                   placeholder="Search products…"
                   value={searchQuery}
-                  onChange={(event) => {
-                    const value = event.target.value;
-
-                    setSearchQuery(value);
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
                     setCurrentPage(1);
-
-                    updateUrlParams({
-                      q: value,
-                      page: 1,
-                    });
+                    updateUrlParams({ q: e.target.value, page: 1 });
                   }}
                   className="pl-9 pr-9 h-10 rounded-xl border-border focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary bg-muted/40 text-sm"
                 />
-
                 {searchQuery && (
                   <button
                     onClick={() => {
                       setSearchQuery("");
                       setCurrentPage(1);
-
-                      updateUrlParams({
-                        q: "",
-                        page: 1,
-                      });
+                      updateUrlParams({ q: "", page: 1 });
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -679,17 +585,10 @@ export default function AllProducts() {
                     )}
                   </Button>
                 </SheetTrigger>
-
-                <SheetContent
-                  side="left"
-                  className="w-80 flex flex-col p-0 gap-0"
-                >
+                <SheetContent side="left" className="w-80 flex flex-col p-0 gap-0">
                   <SheetHeader className="p-5 border-b border-border">
-                    <SheetTitle className="text-base font-bold">
-                      Filters
-                    </SheetTitle>
+                    <SheetTitle className="text-base font-bold">Filters</SheetTitle>
                   </SheetHeader>
-
                   <div className="flex-1 overflow-y-auto p-5">
                     <FilterPanel
                       displayPriceRange={displayPriceRange}
@@ -698,11 +597,7 @@ export default function AllProducts() {
                       setMinRating={(value) => {
                         setMinRating(value);
                         setCurrentPage(1);
-
-                        updateUrlParams({
-                          minRating: value,
-                          page: 1,
-                        });
+                        updateUrlParams({ minRating: value, page: 1 });
                       }}
                       categories={categories}
                       selectedCategories={selectedCategories}
@@ -710,7 +605,6 @@ export default function AllProducts() {
                       onClearFilters={handleClearFilters}
                     />
                   </div>
-
                   <SheetFooter className="p-5 border-t border-border">
                     <Button
                       onClick={handleClearFilters}
@@ -729,24 +623,17 @@ export default function AllProducts() {
                   onValueChange={(value) => {
                     setSortOption(value);
                     setCurrentPage(1);
-
-                    updateUrlParams({
-                      sort: value,
-                      page: 1,
-                    });
+                    updateUrlParams({ sort: value, page: 1 });
                   }}
                 >
                   <SelectTrigger className="h-10 w-48 rounded-xl border-border text-sm focus:ring-1 focus:ring-primary">
                     <SelectValue />
                   </SelectTrigger>
-
                   <SelectContent className="rounded-xl border-border shadow-lg">
                     <SelectItem value="newest">Newest Arrivals</SelectItem>
                     <SelectItem value="oldest">Oldest First</SelectItem>
                     <SelectItem value="price-asc">Price: Low → High</SelectItem>
-                    <SelectItem value="price-desc">
-                      Price: High → Low
-                    </SelectItem>
+                    <SelectItem value="price-desc">Price: High → Low</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -754,13 +641,7 @@ export default function AllProducts() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => {
-                      setViewMode("grid");
-
-                      updateUrlParams({
-                        view: "grid",
-                      });
-                    }}
+                    onClick={() => { setViewMode("grid"); updateUrlParams({ view: "grid" }); }}
                     className={cn(
                       "h-8 w-8 rounded-lg transition-all",
                       viewMode === "grid"
@@ -770,17 +651,10 @@ export default function AllProducts() {
                   >
                     <LayoutGrid className="h-4 w-4" />
                   </Button>
-
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => {
-                      setViewMode("list");
-
-                      updateUrlParams({
-                        view: "list",
-                      });
-                    }}
+                    onClick={() => { setViewMode("list"); updateUrlParams({ view: "list" }); }}
                     className={cn(
                       "h-8 w-8 rounded-lg transition-all",
                       viewMode === "list"
@@ -794,22 +668,18 @@ export default function AllProducts() {
               </div>
             </div>
 
-            {(currentCategoryNames.length > 0 ||
-              minRating > 0 ||
-              searchQuery) && (
+            {(currentCategoryNames.length > 0 || minRating > 0 || searchQuery) && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground font-medium">
                   Active filters:
                 </span>
-
                 {currentCategoryNames.map((name) => (
                   <Badge
                     key={name}
                     className="bg-primary/10 text-primary border border-primary/25 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-primary/20 cursor-pointer transition-colors select-none"
                     onClick={() =>
                       handleCategoryToggle(
-                        categories.find((category) => category.name === name)
-                          ?.id
+                        categories.find((c) => c.name === name)?.id
                       )
                     }
                   >
@@ -817,43 +687,32 @@ export default function AllProducts() {
                     <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 ))}
-
                 {minRating > 0 && (
                   <Badge
                     className="bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-amber-100 cursor-pointer transition-colors select-none"
                     onClick={() => {
                       setMinRating(0);
                       setCurrentPage(1);
-
-                      updateUrlParams({
-                        minRating: 0,
-                        page: 1,
-                      });
+                      updateUrlParams({ minRating: 0, page: 1 });
                     }}
                   >
                     {minRating}★ & up
                     <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 )}
-
                 {searchQuery && (
                   <Badge
                     className="bg-sky-50 text-sky-700 border border-sky-200 rounded-full px-3 py-1 text-xs font-medium gap-1.5 hover:bg-sky-100 cursor-pointer transition-colors select-none"
                     onClick={() => {
                       setSearchQuery("");
                       setCurrentPage(1);
-
-                      updateUrlParams({
-                        q: "",
-                        page: 1,
-                      });
+                      updateUrlParams({ q: "", page: 1 });
                     }}
                   >
                     "{searchQuery}"
                     <XCircle className="h-3 w-3 flex-shrink-0" />
                   </Badge>
                 )}
-
                 <button
                   onClick={handleClearFilters}
                   className="text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2 ml-1"
@@ -887,8 +746,8 @@ export default function AllProducts() {
                     : "grid-cols-1"
                 )}
               >
-                {Array.from({ length: 9 }).map((_, index) => (
-                  <ProductSkeleton key={index} viewMode={viewMode} />
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <ProductSkeleton key={i} viewMode={viewMode} />
                 ))}
               </div>
             ) : products.length === 0 ? (
@@ -896,16 +755,13 @@ export default function AllProducts() {
                 <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
                   <PackageSearch className="h-10 w-10 text-primary" />
                 </div>
-
                 <h2 className="text-xl font-bold text-foreground mb-2">
                   No Products Found
                 </h2>
-
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs leading-relaxed">
                   Try adjusting your filters or search query to find what you're
                   looking for.
                 </p>
-
                 <Button
                   onClick={handleClearFilters}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6 h-10 shadow-sm font-medium"
@@ -926,30 +782,8 @@ export default function AllProducts() {
                   <MergedProductCard
                     key={product.id}
                     product={product}
-                    selections={selections[product.id]}
-                    onSelectionChange={(field, value) =>
-                      handleSelectionChange(product.id, field, value)
-                    }
-                    isWishlisted={wishlist.some(
-                      (item) => item.productId === product.id
-                    )}
-                    onToggleWishlist={() => toggleWishlist(product.id)}
-                    onAddToCart={(quantity = 1) =>
-                      addToCart(
-                        {
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                          imageUrl: product.imageUrls?.split(",")[0] ?? null,
-                          size: selections[product.id]?.selectedSize,
-                          color: selections[product.id]?.selectedColor,
-                        },
-                        quantity
-                      )
-                    }
-                    tags="NEW"
                     buttonText="Add to Cart"
-                    viewMode={viewMode}
+                    tags={product.isNewArrival ? "NEW" : undefined}
                   />
                 ))}
               </div>

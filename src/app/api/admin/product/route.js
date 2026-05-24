@@ -173,30 +173,66 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   try {
     const authCheck = await requireAuthenticatedUser(request);
-
     if (authCheck) return authCheck;
+
     const { id } = await request.json();
     if (!id) {
+      return NextResponse.json({ error: "Missing product ID" }, { status: 400 });
+    }
+
+    // Check orders
+    const orderCount = await prisma.orderItem.count({
+      where: { productId: id },
+    });
+    if (orderCount > 0) {
       return NextResponse.json(
-        { error: "Missing product ID" },
+        { error: "Cannot delete: this product has existing orders." },
         { status: 400 }
       );
     }
 
-    await prisma.$transaction([prisma.product.delete({ where: { id } })]);
+    // Check active loan applications
+    const loanCount = await prisma.loanApplication.count({
+      where: {
+        productId: id,
+        status: {
+          notIn: ["REJECTED", "CANCELLED"],
+        },
+      },
+    });
+    if (loanCount > 0) {
+      return NextResponse.json(
+        { error: "Cannot delete: this product has active loan applications." },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ message: "Product deleted" }, { status: 200 });
+    // Safe to delete — clear dependents in order
+    await prisma.$transaction([
+      prisma.stockLedger.deleteMany({ where: { productId: id } }),
+      // Only delete REJECTED/CANCELLED loans (active ones are blocked above)
+      prisma.loanApplication.deleteMany({
+        where: {
+          productId: id,
+          status: { in: ["REJECTED", "CANCELLED"] },
+        },
+      }),
+      prisma.cartItem.deleteMany({ where: { productId: id } }),
+      prisma.product.update({
+        where: { id },
+        data: { wishlists: { set: [] } },
+      }),
+      prisma.reviewImage.deleteMany({
+        where: { review: { productId: id } },
+      }),
+      prisma.review.deleteMany({ where: { productId: id } }),
+      prisma.productImage.deleteMany({ where: { productId: id } }),
+      prisma.product.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ message: "Product deleted successfully." }, { status: 200 });
   } catch (error) {
     console.error("Error deleting product:", error);
-    if (error.code === "P2003") {
-      return NextResponse.json(
-        {
-          error:
-            "Failed to delete product due to foreign key constraints. Check for dependent records like review images.",
-        },
-        { status: 400 }
-      );
-    }
     return NextResponse.json(
       { error: "Failed to delete product: " + error.message },
       { status: 500 }

@@ -91,9 +91,9 @@ export const metadata = {
 
 async function getProductsForJsonLd() {
   try {
-    const res = await fetch(`${SITE_URL}/api/admin/product?limit=50&fields=name,slug,price,mainImage,images,category`, {
-      next: { revalidate: 3600 }, // ISR: rebuild JSON-LD every hour
-    });
+    const res = await fetch(`${SITE_URL}/api/admin/product?limit=50&fields=name,slug,price,mainImage,images,category`,{
+    cache: "no-store",
+  });
     if (!res.ok) return [];
     const data = await res.json();
     // Support both { products: [] } and flat []
@@ -108,6 +108,7 @@ async function getProductsForJsonLd() {
 
 export default async function AllProductsPage() {
   const products = await getProductsForJsonLd();
+
 
   // ── Breadcrumb JSON-LD ──────────────────────────────────────────────────────
   const breadcrumbJsonLd = {
