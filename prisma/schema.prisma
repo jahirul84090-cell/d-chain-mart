@@ -240,6 +240,8 @@ model Order {
   @@index([userId])
   @@index([shippingAddressId])
   @@index([paymentMethodId])
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model OrderItem {

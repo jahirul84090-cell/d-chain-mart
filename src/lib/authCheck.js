@@ -48,6 +48,24 @@ export async function requireAuthenticatedUser(request, { superAdminOnly = false
 }
 
 /**
+ * True when the current session belongs to an active staff member. For
+ * public endpoints that return extra data (e.g. hidden products) to staff.
+ */
+export async function isStaffSession() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return false;
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true, isBlocked: true },
+    });
+    return !!user && !user.isBlocked && STAFF_ROLES.includes(user.role);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Guard for resources that belong to a user.
  * Returns { user, isAdmin } for any signed-in user, or { response } with a
  * JSON error. Callers must still compare ownership against `user.id`

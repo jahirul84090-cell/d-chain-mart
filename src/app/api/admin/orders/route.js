@@ -13,7 +13,6 @@ import {
   ORDER_STATUSES,
   StockConflictError,
   applyStatusStockChange,
-  restockOrder,
 } from "@/lib/order-status";
 
 export async function GET(request) {
@@ -22,7 +21,7 @@ export async function GET(request) {
   if (authCheck) return authCheck;
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") || undefined;
+  const status = ORDER_STATUSES.includes(searchParams.get("status")) ? searchParams.get("status") : undefined;
 
   const isPaid =
     searchParams.get("isPaid") === "true"
@@ -34,22 +33,29 @@ export async function GET(request) {
   const fromDate = searchParams.get("fromDate") || undefined;
   const toDate = searchParams.get("toDate") || undefined;
   const paymentMethodId = searchParams.get("paymentMethodId") || undefined;
-  const sortBy = searchParams.get("sortBy") || "createdAt";
-  const sortOrder = searchParams.get("sortOrder") || "desc";
-  const page = parseInt(searchParams.get("page")) || 1;
-  const limit = parseInt(searchParams.get("limit")) || 10;
+  // Only sort on known columns; anything else would make Prisma throw.
+  const SORTABLE = ["createdAt", "orderTotal", "deliveryFee", "status"];
+  const sortBy = SORTABLE.includes(searchParams.get("sortBy")) ? searchParams.get("sortBy") : "createdAt";
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+  const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 10));
+
+  // Order numbers are shown as DCM-XXXXXXXX (the first 8 characters of
+  // the id, uppercased), so accept that form in the search box too.
+  const idSearch = search?.replace(/^DCM-/i, "").toLowerCase();
 
   try {
-    const where = {
-      AND: [
-        status ? { status } : {},
+    // Every filter except status, so the status tabs can show counts.
+    const baseFilters = [
         isPaid !== undefined ? { isPaid } : {},
         paymentMethodId ? { paymentMethodId } : {},
         search
           ? {
               OR: [
-                { id: { contains: search } },
+                { id: { startsWith: idSearch } },
                 { user: { email: { contains: search } } },
+                { user: { name: { contains: search } } },
+                { shippingAddress: { phoneNumber: { contains: search } } },
                 { transactionNumber: { contains: search } },
               ],
             }
@@ -64,18 +70,18 @@ export async function GET(request) {
               },
             }
           : {},
-      ].filter(Boolean),
-    };
+    ];
+    const where = { AND: [status ? { status } : {}, ...baseFilters] };
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
         include: {
-          user: { select: { email: true } },
+          user: { select: { email: true, name: true } },
           shippingAddress: {
-            select: { street: true, city: true, state: true, zipCode: true },
+            select: { street: true, city: true, state: true, zipCode: true, phoneNumber: true },
           },
-          paymentMethod: { select: { name: true } },
+          paymentMethod: { select: { name: true, isCashOnDelivery: true } },
           invoice: { select: { id: true } },
           items: {
             select: {
@@ -93,10 +99,18 @@ export async function GET(request) {
       prisma.order.count({ where }),
     ]);
 
+    const grouped = await prisma.order.groupBy({
+      by: ["status"],
+      where: { AND: baseFilters },
+      _count: { _all: true },
+    });
+    const statusCounts = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
+
     return NextResponse.json(
       {
         orders,
         total,
+        statusCounts,
         totalPages: Math.ceil(total / limit),
         currentPage: page,
       },
@@ -179,9 +193,16 @@ async function handleDELETE(request) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    // Keep the sales record for live orders: they must be cancelled (which
+    // returns their stock) before they can be deleted.
+    if (existing.status !== "CANCELLED") {
+      return NextResponse.json(
+        { error: "Only cancelled orders can be deleted. Cancel the order first." },
+        { status: 409 }
+      );
+    }
+
     await prisma.$transaction(async (tx) => {
-      // An active order still holds stock; give it back before deleting.
-      if (existing.status !== "CANCELLED") await restockOrder(tx, existing.items);
       await tx.invoice.deleteMany({ where: { orderId: id } });
       await tx.loanApplication.updateMany({ where: { orderId: id }, data: { orderId: null } });
       await tx.orderItem.deleteMany({ where: { orderId: id } });

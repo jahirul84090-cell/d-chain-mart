@@ -1,745 +1,392 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { Download, Eye, FilePlus2, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Loader2,
-  ArrowUpDown,
-  Download,
-  Trash2,
-  Eye,
-  AlertTriangle,
-  ShoppingBag,
-  PackageX,
-  X,
-  TruckIcon,
-  BadgeCheck,
-  Ban,
-  RefreshCw,
-  Clock4,
-} from "lucide-react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import AdminPageHeader from "@/components/Admin/Dashboard/AdminPageHeader";
+import { ConfirmDialog, ListPagination, ListState, StatusTabs, useListParams } from "@/components/Admin/Dashboard/AdminListParts";
+import { OrderStatusBadge, downloadInvoice } from "@/components/others/Allorders";
+import { formatBDT, formatDate, orderNumber } from "@/lib/format";
 import { useDebounce } from "@/lib/useDebounce";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { orderNumber } from "@/lib/format";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;
 
-const STATUS_META = {
-  PENDING: {
-    label: "Pending",
-    icon: Clock4,
-    color: "bg-amber-50 text-amber-700 ring-amber-200",
-    dot: "bg-amber-400",
-  },
-  PROCESSING: {
-    label: "Processing",
-    icon: RefreshCw,
-    color: "bg-sky-50 text-sky-700 ring-sky-200",
-    dot: "bg-sky-400",
-  },
-  SHIPPED: {
-    label: "Shipped",
-    icon: TruckIcon,
-    color: "bg-violet-50 text-violet-700 ring-violet-200",
-    dot: "bg-violet-400",
-  },
-  DELIVERED: {
-    label: "Delivered",
-    icon: BadgeCheck,
-    color: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    dot: "bg-emerald-400",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    icon: Ban,
-    color: "bg-red-50 text-red-700 ring-red-200",
-    dot: "bg-red-400",
-  },
+const STATUS_TABS = [
+  { value: "all", label: "All" },
+  { value: "PENDING", label: "Pending" },
+  { value: "PROCESSING", label: "Processing" },
+  { value: "SHIPPED", label: "Shipped" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const SORTS = {
+  newest: { sortBy: "createdAt", sortOrder: "desc", label: "Newest first" },
+  oldest: { sortBy: "createdAt", sortOrder: "asc", label: "Oldest first" },
+  highest: { sortBy: "orderTotal", sortOrder: "desc", label: "Highest total" },
+  lowest: { sortBy: "orderTotal", sortOrder: "asc", label: "Lowest total" },
 };
 
-function StatusPill({ status }) {
-  const m = STATUS_META[status] || STATUS_META.PENDING;
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${m.color}`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${m.dot}`} />
-      {m.label}
-    </span>
-  );
-}
+const DEFAULTS = { status: "all", paid: "all", method: "all", q: "", from: "", to: "", sort: "newest", page: 1 };
 
-// ─── Global download toast ────────────────────────────────────────────────────
-function DownloadToast({ orderId }) {
-  if (!orderId) return null;
+function PaymentCell({ order }) {
+  const cod = order.paymentMethod?.isCashOnDelivery;
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-white border border-slate-200 rounded-2xl shadow-2xl px-5 py-3.5 animate-in slide-in-from-bottom-4 duration-300">
-      <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
-        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-slate-800">
-          Downloading Invoice
+    <div className="text-sm">
+      <p className="text-gray-900">{order.paymentMethod?.name || "—"}</p>
+      <p className={order.isPaid ? "text-xs font-medium text-green-700" : "text-xs text-amber-700"}>
+        {order.isPaid ? "Paid" : order.status === "CANCELLED" ? "Not charged" : cod ? "Collect on delivery" : "Awaiting payment"}
+      </p>
+      {!cod && order.transactionNumber && (
+        <p className="max-w-[10rem] truncate font-mono text-[11px] text-gray-500" title={order.transactionNumber}>
+          {order.transactionNumber}
         </p>
-        <p className="text-xs text-slate-400">Preparing your PDF…</p>
-      </div>
+      )}
     </div>
   );
 }
 
-// ─── Delete Modal ─────────────────────────────────────────────────────────────
-function DeleteModal({ orderId, isDeleting, onConfirm, onCancel }) {
+function itemCount(order) {
+  const n = order.items.reduce((sum, i) => sum + i.quantity, 0);
+  return `${n} item${n === 1 ? "" : "s"}`;
+}
+
+function RowActions({ order, onDownload, onDelete }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        onClick={() => !isDeleting && onCancel()}
-      />
-      <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="h-1 w-full bg-gradient-to-r from-red-400 to-rose-500" />
-        <div className="p-6">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Delete this order?
-              </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
-                This cannot be undone.
-              </p>
-            </div>
-          </div>
-          <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 leading-relaxed">
-            Order{" "}
-            <code className="font-mono font-semibold text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded text-xs">
-              {orderNumber(orderId)}
-            </code>{" "}
-            and all associated data will be permanently removed.
-          </p>
-          <div className="flex justify-end gap-3 mt-5">
-            <button
-              onClick={onCancel}
-              disabled={isDeleting}
-              className="px-5 py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isDeleting}
-              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-60 transition-all shadow-md shadow-red-100"
-            >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-              {isDeleting ? "Deleting…" : "Delete Permanently"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`More actions for order ${orderNumber(order.id)}`}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem asChild>
+          <Link href={`/dashboard/order/${order.id}`}>
+            <Eye className="mr-2 h-4 w-4" aria-hidden="true" /> View & update
+          </Link>
+        </DropdownMenuItem>
+        {order.invoice?.id && (
+          <DropdownMenuItem onClick={() => onDownload(order)}>
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" /> Download invoice
+          </DropdownMenuItem>
+        )}
+        {order.status === "CANCELLED" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onDelete(order)} className="text-red-600 focus:text-red-700">
+              <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Delete order
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-// ─── Icon action button ───────────────────────────────────────────────────────
-function IconBtn({
-  onClick,
-  disabled,
-  tooltip,
-  children,
-  variant = "default",
-}) {
-  const variantCls = {
-    default: "hover:border-teal-400 hover:text-primary hover:bg-teal-50",
-    blue: "hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50",
-    red: "hover:border-red-400 hover:text-red-600 hover:bg-red-50",
-  };
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={onClick}
-            disabled={disabled}
-            className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-500 transition-all duration-150 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${variantCls[variant]}`}
-          >
-            {children}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          {tooltip}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function OrderManagement() {
-  const [orders, setOrders] = useState([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [params, setParams] = useListParams(DEFAULTS);
+  const [search, setSearch] = useState(params.q);
+  const debouncedSearch = useDebounce(search.trim(), 400);
+
+  const [data, setData] = useState({ orders: [], total: 0, totalPages: 1, statusCounts: {} });
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isPaidFilter, setIsPaidFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [sorting, setSorting] = useState([{ id: "createdAt", desc: true }]);
-  const [orderToDelete, setOrderToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [downloadingInvoice, setDownloadingInvoice] = useState(null);
-  const router = useRouter();
+  const [error, setError] = useState(null);
+  const [methods, setMethods] = useState([]);
+  const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const debouncedSearch = useDebounce(search, 600);
+  // Push the debounced search box into the URL.
+  useEffect(() => {
+    if (debouncedSearch !== params.q) setParams({ q: debouncedSearch });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
-  async function handleInvoiceDownload(e, invoiceId, orderId) {
-    e.preventDefault();
-    setDownloadingInvoice(orderId);
+  useEffect(() => {
+    fetch("/api/admin/payment-methods")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setMethods(Array.isArray(d) ? d : d.paymentMethods || []))
+      .catch(() => setMethods([]));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const sort = SORTS[params.sort] || SORTS.newest;
+    const q = new URLSearchParams({ page: params.page, limit: PAGE_SIZE, sortBy: sort.sortBy, sortOrder: sort.sortOrder });
+    if (params.status !== "all") q.set("status", params.status);
+    if (params.paid !== "all") q.set("isPaid", params.paid === "paid" ? "true" : "false");
+    if (params.method !== "all") q.set("paymentMethodId", params.method);
+    if (params.q) q.set("search", params.q);
+    if (params.from) q.set("fromDate", params.from);
+    if (params.to) q.set("toDate", params.to);
+
+    setLoading(true);
+    fetch(`/api/admin/orders?${q}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Could not load orders."))))
+      .then((d) => {
+        if (!active) return;
+        setData({ orders: d.orders, total: d.total, totalPages: d.totalPages || 1, statusCounts: d.statusCounts || {} });
+        setError(null);
+      })
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [params.page, params.status, params.paid, params.method, params.q, params.from, params.to, params.sort, reloadKey]);
+
+  const onDownload = useCallback(async (order) => {
     try {
-      const res = await fetch(`/api/admin/invoices/${invoiceId}/pdf`);
-      if (!res.ok) throw new Error("Failed to download invoice");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = Object.assign(document.createElement("a"), {
-        href: url,
-        download: `invoice-${orderId}.pdf`,
-      });
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Invoice downloaded");
-    } catch (err) {
-      toast.error("Download failed: " + err.message);
-    } finally {
-      setDownloadingInvoice(null);
+      await downloadInvoice(order.invoice.id, orderNumber(order.id));
+    } catch (e) {
+      toast.error(e.message);
     }
-  }
+  }, []);
 
-  async function confirmDelete() {
-    if (!orderToDelete) return;
-    setIsDeleting(true);
+  const confirmDelete = async () => {
+    setDeleting(true);
     try {
       const res = await fetch("/api/admin/orders", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderToDelete }),
+        body: JSON.stringify({ id: toDelete.id }),
       });
-      if (res.ok) {
-        toast.success("Order deleted");
-        setOrders((prev) => prev.filter((o) => o.id !== orderToDelete));
-      } else {
-        throw new Error((await res.json()).error || "Delete failed");
-      }
-    } catch (err) {
-      toast.error("Delete failed: " + err.message);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Could not delete the order.");
+      toast.success(`Order ${orderNumber(toDelete.id)} deleted.`);
+      setToDelete(null);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      toast.error(e.message);
     } finally {
-      setIsDeleting(false);
-      setOrderToDelete(null);
+      setDeleting(false);
     }
-  }
+  };
 
-  const columns = [
-    {
-      accessorKey: "id",
-      header: () => <ColHead>Order</ColHead>,
-      cell: ({ row }) => (
-        <button
-          type="button"
-          onClick={() => router.push(`/dashboard/order/${row.original.id}`)}
-          className="whitespace-nowrap text-xs font-semibold text-primary hover:underline"
-        >
-          {orderNumber(row.original.id)}
-        </button>
-      ),
-      enableSorting: false,
-    },
-    {
-      accessorKey: "transactionNumber",
-      header: () => <ColHead>Payment ref.</ColHead>,
-      cell: ({ row }) => (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="font-mono text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md cursor-default">
-                {row.original.transactionNumber ? (
-                  row.original.transactionNumber.slice(0, 10) + "…"
-                ) : (
-                  <span className="text-slate-400 italic font-normal">N/A</span>
-                )}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="font-mono text-xs">
-              {row.original.transactionNumber || "N/A"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ),
-    },
-    {
-      accessorKey: "user.email",
-      header: () => <ColHead>Customer</ColHead>,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
-            {row.original.user.email[0].toUpperCase()}
-          </span>
-          <span className="text-sm text-slate-700 font-medium truncate max-w-[160px]">
-            {row.original.user.email}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "orderTotal",
-      header: ({ column }) => <SortHead column={column} label="Total" />,
-      cell: ({ row }) => (
-        <span className="text-sm font-bold text-slate-800">
-          ৳{row.getValue("orderTotal")?.toLocaleString("en-BD") ?? "0"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "deliveryFee",
-      header: ({ column }) => <SortHead column={column} label="Delivery" />,
-      cell: ({ row }) => (
-        <span className="text-sm text-slate-500">
-          ৳{row.getValue("deliveryFee")?.toLocaleString("en-BD") ?? "0"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: () => <ColHead>Status</ColHead>,
-      cell: ({ row }) => <StatusPill status={row.getValue("status")} />,
-    },
-    {
-      accessorKey: "isPaid",
-      header: () => <ColHead>Paid</ColHead>,
-      cell: ({ row }) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${
-            row.getValue("isPaid")
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-              : "bg-red-50 text-red-700 ring-red-200"
-          }`}
-        >
-          {row.getValue("isPaid") ? "Paid" : "Unpaid"}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "paymentMethod",
-      header: () => <ColHead>Method</ColHead>,
-      cell: ({ row }) => (
-        <span className="text-sm text-slate-600">
-          {row.original.paymentMethod?.name || (
-            <span className="text-slate-400 italic">N/A</span>
-          )}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "createdAt",
-      header: ({ column }) => <SortHead column={column} label="Date" />,
-      cell: ({ row }) => (
-        <span className="text-xs text-slate-500 tabular-nums">
-          {new Date(row.getValue("createdAt")).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })}
-        </span>
-      ),
-    },
-    {
-      id: "actions",
-      header: () => <ColHead>Actions</ColHead>,
-      cell: ({ row }) => {
-        const isDownloading = downloadingInvoice === row.original.id;
-        return (
-          <div className="flex items-center gap-1.5">
-            <IconBtn
-              onClick={() => router.push(`/dashboard/order/${row.original.id}`)}
-              tooltip="View Details"
-              variant="default"
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </IconBtn>
-
-            {row.original.isInvoiceGenerated && row.original.invoice && (
-              <IconBtn
-                onClick={(e) =>
-                  handleInvoiceDownload(
-                    e,
-                    row.original.invoice.id,
-                    row.original.id,
-                  )
-                }
-                disabled={isDownloading}
-                tooltip={isDownloading ? "Downloading…" : "Download Invoice"}
-                variant="blue"
-              >
-                {isDownloading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
-                ) : (
-                  <Download className="h-3.5 w-3.5" />
-                )}
-              </IconBtn>
-            )}
-
-            {!row.original.isInvoiceGenerated && (
-              <IconBtn
-                onClick={() => setOrderToDelete(row.original.id)}
-                tooltip="Delete Order"
-                variant="red"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </IconBtn>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
-
-  const table = useReactTable({
-    data: orders,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-      pagination: { pageIndex: currentPage - 1, pageSize: 10 },
-    },
-    onSortingChange: setSorting,
-    manualPagination: true,
-    pageCount: totalPages,
-  });
-
-  useEffect(() => {
-    async function fetchOrders() {
-      setLoading(true);
-      try {
-        const p = new URLSearchParams();
-        p.append("page", currentPage);
-        p.append("limit", "10");
-        if (statusFilter !== "all") p.append("status", statusFilter);
-        if (isPaidFilter !== "all") p.append("isPaid", isPaidFilter);
-        if (paymentMethodFilter !== "all")
-          p.append("paymentMethodId", paymentMethodFilter);
-        if (debouncedSearch) p.append("search", debouncedSearch);
-        if (fromDate) p.append("fromDate", fromDate);
-        if (toDate) p.append("toDate", toDate);
-        p.append("sortBy", sorting[0]?.id || "createdAt");
-        p.append("sortOrder", sorting[0]?.desc ? "desc" : "asc");
-
-        const res = await fetch(`/api/admin/orders?${p}`);
-        if (!res.ok) throw new Error("Failed to fetch orders");
-        const { orders: fetched, totalPages: tp } = await res.json();
-        setOrders(fetched);
-        setTotalPages(tp);
-      } catch (err) {
-        toast.error("Failed to fetch orders: " + err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchOrders();
-  }, [
-    currentPage,
-    statusFilter,
-    isPaidFilter,
-    debouncedSearch,
-    fromDate,
-    toDate,
-    paymentMethodFilter,
-    sorting,
-  ]);
-
-  useEffect(() => {
-    fetch("/api/admin/payment-methods")
-      .then((r) => r.json())
-      .then(({ paymentMethods: m }) => setPaymentMethods(m))
-      .catch(() => {});
-  }, []);
-
-  const inputCls =
-    "border-slate-200 focus:ring-2 focus:ring-primary rounded-xl shadow-sm text-sm h-10 placeholder:text-slate-400";
-  const selectCls =
-    "w-full border-slate-200 bg-white text-slate-700 rounded-xl shadow-sm text-sm h-10";
+  const counts = data.statusCounts;
+  const tabs = STATUS_TABS.map((t) => ({
+    ...t,
+    count: t.value === "all" ? Object.values(counts).reduce((a, b) => a + b, 0) : counts[t.value] || 0,
+    alert: t.value === "PENDING",
+  }));
+  const filtersActive = params.q || params.paid !== "all" || params.method !== "all" || params.from || params.to;
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="max-w-[1400px] mx-auto space-y-5">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary shadow-md">
-            <ShoppingBag className="h-5 w-5 text-white" />
-          </span>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Order Management
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Monitor, filter and manage all customer orders
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6 p-4 sm:p-6">
+      <AdminPageHeader
+        title="Orders"
+        description="Confirm, ship and track customer orders."
+        actions={
+          <Button asChild className="gap-2">
+            <Link href="/dashboard/invoice">
+              <FilePlus2 className="h-4 w-4" aria-hidden="true" /> Create manual order
+            </Link>
+          </Button>
+        }
+      />
 
-        {/* Filters */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-            <div className="xl:col-span-2 relative">
+      <div className="rounded-2xl border border-gray-200 bg-white">
+        <div className="space-y-4 border-b border-gray-100 p-4">
+          <StatusTabs label="Order status" tabs={tabs} value={params.status} onChange={(status) => setParams({ status })} />
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative sm:col-span-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
               <Input
-                placeholder="Search by email, transaction…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className={inputCls}
+                placeholder="Order no., name, email, phone or payment ref."
+                aria-label="Search orders"
+                className="pl-9"
               />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className={`${inputCls} text-slate-600`}
-            />
-            <Input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className={`${inputCls} text-slate-600`}
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className={selectCls}>
-                <SelectValue placeholder="All Statuses" />
+            <Select value={params.paid} onValueChange={(paid) => setParams({ paid })}>
+              <SelectTrigger className="w-full" aria-label="Payment status">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(STATUS_META).map(([v, m]) => (
-                  <SelectItem key={v} value={v}>
-                    {m.label}
+                <SelectItem value="all">Any payment status</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={params.method} onValueChange={(method) => setParams({ method })}>
+              <SelectTrigger className="w-full" aria-label="Payment method">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any payment method</SelectItem>
+                {methods.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={isPaidFilter} onValueChange={setIsPaidFilter}>
-              <SelectTrigger className={selectCls}>
-                <SelectValue placeholder="All Payments" />
+            <Select value={params.sort} onValueChange={(sort) => setParams({ sort })}>
+              <SelectTrigger className="w-full" aria-label="Sort orders">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Payments</SelectItem>
-                <SelectItem value="true">Paid</SelectItem>
-                <SelectItem value="false">Unpaid</SelectItem>
+                {Object.entries(SORTS).map(([key, s]) => (
+                  <SelectItem key={key} value={key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="order-from" className="w-9 shrink-0 text-xs text-gray-500">
+                From
+              </Label>
+              <Input id="order-from" type="date" value={params.from} max={params.to || undefined} onChange={(e) => setParams({ from: e.target.value })} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="order-to" className="w-9 shrink-0 text-xs text-gray-500">
+                To
+              </Label>
+              <Input id="order-to" type="date" value={params.to} min={params.from || undefined} onChange={(e) => setParams({ to: e.target.value })} />
+            </div>
           </div>
-          {paymentMethods.length > 0 && (
-            <div className="w-full sm:w-56">
-              <Select
-                value={paymentMethodFilter}
-                onValueChange={setPaymentMethodFilter}
-              >
-                <SelectTrigger className={selectCls}>
-                  <SelectValue placeholder="All Payment Methods" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Payment Methods</SelectItem>
-                  {paymentMethods.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+          {filtersActive && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-gray-600"
+              onClick={() => {
+                setSearch("");
+                setParams({ q: "", paid: "all", method: "all", from: "", to: "" });
+              }}
+            >
+              <X className="h-4 w-4" aria-hidden="true" /> Clear filters
+            </Button>
           )}
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-              <p className="text-sm text-slate-400 font-medium">
-                Loading orders…
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-slate-100 bg-slate-50/80">
-                      {table.getHeaderGroups().map((hg) =>
-                        hg.headers.map((h) => (
-                          <TableHead
-                            key={h.id}
-                            className="px-4 py-3 text-left whitespace-nowrap"
-                          >
-                            {flexRender(
-                              h.column.columnDef.header,
-                              h.getContext(),
-                            )}
-                          </TableHead>
-                        )),
+        <ListState
+          loading={loading && !data.orders.length}
+          error={error}
+          onRetry={() => setReloadKey((k) => k + 1)}
+          empty={!loading && !error && data.orders.length === 0}
+          emptyTitle={filtersActive || params.status !== "all" ? "No orders match these filters" : "No orders yet"}
+          emptyHint={filtersActive ? "Try a different search or clear the filters." : "New orders will appear here."}
+        />
+
+        {!error && data.orders.length > 0 && (
+          <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={loading}>
+            {/* Desktop table */}
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="border-b border-gray-100 bg-gray-50/60 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Order</th>
+                  <th scope="col" className="px-4 py-3">Customer</th>
+                  <th scope="col" className="hidden px-4 py-3 lg:table-cell">Date</th>
+                  <th scope="col" className="px-4 py-3 text-right">Total</th>
+                  <th scope="col" className="hidden px-4 py-3 xl:table-cell">Payment</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/70">
+                    <td className="px-4 py-3">
+                      <Link href={`/dashboard/order/${order.id}`} className="font-semibold text-primary hover:underline">
+                        {orderNumber(order.id)}
+                      </Link>
+                      <p className="text-xs text-gray-500">{itemCount(order)}</p>
+                    </td>
+                    <td className="max-w-[14rem] px-4 py-3">
+                      <p className="truncate font-medium text-gray-900">{order.user?.name || "—"}</p>
+                      <p className="truncate text-xs text-gray-500">{order.shippingAddress?.phoneNumber || order.user?.email}</p>
+                      <p className="truncate text-xs text-gray-400">{order.shippingAddress?.city}</p>
+                    </td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-gray-600 lg:table-cell">
+                      {formatDate(order.createdAt, { withTime: true })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <p className="font-semibold text-gray-900">{formatBDT(order.orderTotal)}</p>
+                      {order.deliveryFee > 0 && <p className="text-xs text-gray-500">incl. {formatBDT(order.deliveryFee)} delivery</p>}
+                    </td>
+                    <td className="hidden px-4 py-3 xl:table-cell">
+                      <PaymentCell order={order} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <OrderStatusBadge status={order.status} />
+                      {!order.isPaid && order.status !== "CANCELLED" && (
+                        <p className="mt-1 text-xs text-amber-700 xl:hidden">Unpaid</p>
                       )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.length ? (
-                      table.getRowModel().rows.map((row, i) => (
-                        <TableRow
-                          key={row.id}
-                          className={`border-b border-slate-50 hover:bg-primary/5/40 transition-colors duration-100 ${i % 2 !== 0 ? "bg-slate-50/40" : ""}`}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              className="px-4 py-3 whitespace-nowrap"
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={columns.length} className="h-64">
-                          <div className="flex flex-col items-center justify-center gap-3 text-slate-400">
-                            <PackageX className="h-14 w-14 text-slate-200" />
-                            <div className="text-center">
-                              <p className="font-semibold text-slate-500 text-sm">
-                                No orders found
-                              </p>
-                              <p className="text-xs mt-1 text-slate-400">
-                                Try adjusting your filters or search.
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <RowActions order={order} onDownload={onDownload} onDelete={setToDelete} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
-                <p className="text-xs text-slate-500">
-                  Page{" "}
-                  <span className="font-semibold text-slate-700">
-                    {currentPage}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-slate-700">
-                    {totalPages}
-                  </span>
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    disabled={!table.getCanPreviousPage()}
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                    className="px-4 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-                  >
-                    ← Previous
-                  </button>
-                  <button
-                    disabled={!table.getCanNextPage()}
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                    className="px-4 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-                  >
-                    Next →
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+            {/* Phone cards */}
+            <ul className="divide-y divide-gray-100 md:hidden">
+              {data.orders.map((order) => (
+                <li key={order.id} className="flex gap-3 p-4">
+                  <Link href={`/dashboard/order/${order.id}`} className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-primary">{orderNumber(order.id)}</span>
+                      <OrderStatusBadge status={order.status} />
+                    </div>
+                    <p className="mt-1 truncate text-sm font-medium text-gray-900">
+                      {order.user?.name || order.user?.email}
+                      {order.shippingAddress?.city && <span className="font-normal text-gray-500"> · {order.shippingAddress.city}</span>}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between text-sm">
+                      <span className="text-gray-500">
+                        {formatDate(order.createdAt)} · {itemCount(order)}
+                      </span>
+                      <span className="font-semibold text-gray-900">{formatBDT(order.orderTotal)}</span>
+                    </div>
+                    <p className={`mt-0.5 text-xs ${order.isPaid ? "text-green-700" : "text-amber-700"}`}>
+                      {order.paymentMethod?.name} · {order.isPaid ? "Paid" : order.status === "CANCELLED" ? "Not charged" : "Unpaid"}
+                    </p>
+                  </Link>
+                  <RowActions order={order} onDownload={onDownload} onDelete={setToDelete} />
+                </li>
+              ))}
+            </ul>
+
+            <ListPagination
+              page={params.page}
+              totalPages={data.totalPages}
+              total={data.total}
+              pageSize={PAGE_SIZE}
+              noun="orders"
+              onPage={(page) => setParams({ page })}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Delete Modal */}
-      {orderToDelete && (
-        <DeleteModal
-          orderId={orderToDelete}
-          isDeleting={isDeleting}
-          onConfirm={confirmDelete}
-          onCancel={() => setOrderToDelete(null)}
-        />
-      )}
-
-      {/* Download overlay */}
-      <DownloadToast orderId={downloadingInvoice} />
+      <ConfirmDialog
+        open={!!toDelete}
+        title={`Delete order ${toDelete ? orderNumber(toDelete.id) : ""}?`}
+        description="This permanently removes the cancelled order and its invoice. This can't be undone."
+        confirmLabel="Delete order"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setToDelete(null)}
+      />
     </div>
-  );
-}
-
-// ─── Tiny header helpers ──────────────────────────────────────────────────────
-function ColHead({ children }) {
-  return (
-    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-      {children}
-    </span>
-  );
-}
-
-function SortHead({ column, label }) {
-  return (
-    <button
-      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors group"
-    >
-      {label}
-      <ArrowUpDown className="h-3 w-3 group-hover:text-slate-600" />
-    </button>
   );
 }

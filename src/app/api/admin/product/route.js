@@ -1,6 +1,6 @@
 import { revalidateTag } from "next/cache";
 // app/api/admin/products/route.js
-import { requireAuthenticatedUser } from "@/lib/authCheck";
+import { isStaffSession, requireAuthenticatedUser } from "@/lib/authCheck";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { normalizeProductInput } from "@/lib/product-input";
@@ -55,6 +55,24 @@ async function handlePATCH(request) {
     if (!body.id) {
       return NextResponse.json({ error: "Missing product ID" }, { status: 400 });
     }
+
+    // Quick toggles from the product list: { id, flags: { isActive: false } }.
+    if (body.flags && typeof body.flags === "object") {
+      const FLAGS = ["isActive", "isFeatured", "isPopular", "isNewArrival", "isSlider"];
+      const flags = Object.fromEntries(
+        Object.entries(body.flags).filter(([k, v]) => FLAGS.includes(k) && typeof v === "boolean")
+      );
+      if (!Object.keys(flags).length) {
+        return NextResponse.json({ error: "No valid flags to update" }, { status: 400 });
+      }
+      const product = await prisma.product.update({
+        where: { id: body.id },
+        data: flags,
+        select: { id: true, ...Object.fromEntries(FLAGS.map((k) => [k, true])) },
+      });
+      return NextResponse.json(product, { status: 200 });
+    }
+
     const { data, error } = normalizeProductInput(body);
     if (error) {
       return NextResponse.json({ error }, { status: 400 });
@@ -194,12 +212,18 @@ export async function GET(request) {
       : searchParams.get("isSlider") === "false"
       ? false
       : undefined;
-  const isActive =
+  // Customers only ever see live products; staff can also list hidden ones.
+  const staff = await isStaffSession();
+  const requestedActive =
     searchParams.get("isActive") === "true"
       ? true
       : searchParams.get("isActive") === "false"
       ? false
       : undefined;
+  const isActive = staff ? requestedActive : true;
+  // Admin stock filter: "out" (none left) or "low" (1-5 left).
+  const stock = searchParams.get("stock");
+  const LOW_STOCK = 5;
   const minPrice = searchParams.get("minPrice")
     ? parseFloat(searchParams.get("minPrice"))
     : undefined;
@@ -244,7 +268,9 @@ export async function GET(request) {
   try {
     const where = {
       AND: [
-        search ? { name: { contains: search } } : {},
+        search ? { OR: [{ name: { contains: search } }, { slug: { contains: search } }] } : {},
+        stock === "out" ? { stockAmount: { lte: 0 } } : {},
+        stock === "low" ? { stockAmount: { gt: 0, lte: LOW_STOCK } } : {},
 
         // FIX: Use 'in' operator when categoryIds is an array
         categoryIds.length > 0 ? { categoryId: { in: categoryIds } } : {},
@@ -279,6 +305,21 @@ export async function GET(request) {
       prisma.product.count({ where }),
     ]);
 
+    // Tab counts for the admin product list.
+    const counts = staff
+      ? Object.fromEntries(
+          await Promise.all(
+            Object.entries({
+              all: {},
+              active: { isActive: true },
+              hidden: { isActive: false },
+              out: { stockAmount: { lte: 0 } },
+              low: { stockAmount: { gt: 0, lte: LOW_STOCK } },
+            }).map(async ([key, extra]) => [key, await prisma.product.count({ where: extra })])
+          )
+        )
+      : undefined;
+
     const productsWithRating = products.map((product) => ({
       ...product,
       rating:
@@ -303,6 +344,7 @@ export async function GET(request) {
       {
         products: filteredProductsByRating,
         total,
+        ...(counts && { counts }),
         totalPages: Math.ceil(total / limit),
         currentPage: page,
       },

@@ -15,13 +15,15 @@ const EXTRA = [
 ];
 
 function resolve(pathname) {
-  const extra = EXTRA.find(([prefix]) => pathname.startsWith(prefix));
-  if (extra) return { parent: { title: extra[3], url: extra[2] }, title: extra[1] };
+  // Exact sidebar pages first, so e.g. /dashboard/order/manage isn't taken
+  // for an order detail page.
   for (const item of data.navMain) {
     if (item.url === pathname) return { title: item.title };
     const sub = item.items?.find((s) => s.url === pathname);
     if (sub) return { parent: { title: item.title, url: item.items[0].url }, title: sub.title };
   }
+  const extra = EXTRA.find(([prefix]) => pathname.startsWith(prefix));
+  if (extra) return { parent: { title: extra[3], url: extra[2] }, title: extra[1] };
   return { title: "Dashboard" };
 }
 
