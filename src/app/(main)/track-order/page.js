@@ -4,8 +4,9 @@ import { PackageSearch } from "lucide-react";
 import { getCurrentUser } from "@/lib/user";
 
 export const metadata = {
-  title: "Track Your Order",
-  description: "See the status of your orders.",
+  title: "Track Your Order – Check Delivery Status",
+  description:
+    "Track your D Chin Mart order: sign in to see its status, delivery progress and invoice, or contact our support team for help.",
   alternates: { canonical: "/track-order" },
 };
 

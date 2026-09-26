@@ -6,6 +6,14 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  poweredByHeader: false,
+
+  // Product pages live at /{slug}. Older structured data pointed at
+  // /product/{slug}; send any such links to the real page permanently.
+  async redirects() {
+    return [{ source: "/product/:slug", destination: "/:slug", permanent: true }];
+  },
+
   images: {
     remotePatterns: [
       {

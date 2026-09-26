@@ -1,59 +1,71 @@
 import { prisma } from "@/lib/prisma";
 import { SITE_URL } from "@/lib/site";
+import { absoluteUrl } from "@/lib/jsonld";
+import { POLICY_UPDATED } from "@/lib/policies";
 
 // Rebuild the sitemap at most once an hour.
 export const revalidate = 3600;
 
+// lastmod must reflect real content changes, otherwise Google ignores it.
+const policyDate = new Date(`${POLICY_UPDATED} UTC`);
+
+const POLICY_PAGES = [
+  "/faq",
+  "/shipping-policy",
+  "/return-policy",
+  "/emi-policy",
+  "/privacy-policy",
+  "/terms-and-conditions",
+];
+
 export default async function sitemap() {
-  const now = new Date();
-
-  const staticPages = [
-    { path: "", changeFrequency: "daily", priority: 1 },
-    { path: "/allproducts", changeFrequency: "daily", priority: 0.9 },
-    { path: "/category", changeFrequency: "weekly", priority: 0.8 },
-    { path: "/about", changeFrequency: "monthly", priority: 0.4 },
-    { path: "/contact", changeFrequency: "monthly", priority: 0.4 },
-    { path: "/faq", changeFrequency: "monthly", priority: 0.4 },
-    { path: "/shipping-policy", changeFrequency: "yearly", priority: 0.3 },
-    { path: "/return-policy", changeFrequency: "yearly", priority: 0.3 },
-    { path: "/emi-policy", changeFrequency: "yearly", priority: 0.3 },
-    { path: "/privacy-policy", changeFrequency: "yearly", priority: 0.2 },
-    { path: "/terms-and-conditions", changeFrequency: "yearly", priority: 0.2 },
-  ].map(({ path, ...rest }) => ({
-    url: `${SITE_URL}${path}`,
-    lastModified: now,
-    ...rest,
-  }));
-
+  let products = [];
+  let categories = [];
   try {
-    const [products, categories] = await Promise.all([
+    [products, categories] = await Promise.all([
       prisma.product.findMany({
         where: { isActive: true },
-        select: { slug: true, updatedAt: true, mainImage: true },
+        select: { slug: true, updatedAt: true, mainImage: true, categoryId: true },
         orderBy: { updatedAt: "desc" },
         take: 45000, // sitemap files are limited to 50,000 URLs
       }),
-      prisma.category.findMany({ select: { slug: true } }),
+      prisma.category.findMany({ select: { id: true, slug: true } }),
     ]);
-
-    const categoryPages = categories.map((c) => ({
-      url: `${SITE_URL}/category/${encodeURIComponent(c.slug)}`,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    }));
-
-    const productPages = products.map((p) => ({
-      url: `${SITE_URL}/${encodeURIComponent(p.slug)}`,
-      lastModified: p.updatedAt,
-      changeFrequency: "weekly",
-      priority: 0.8,
-      ...(p.mainImage ? { images: [p.mainImage] } : {}),
-    }));
-
-    return [...staticPages, ...categoryPages, ...productPages];
   } catch (error) {
     console.error("sitemap: Error", error);
-    return staticPages;
   }
+
+  // Listing pages change whenever one of their products does.
+  const newestProduct = products[0]?.updatedAt;
+  const newestByCategory = new Map();
+  for (const p of products) {
+    if (!newestByCategory.has(p.categoryId)) newestByCategory.set(p.categoryId, p.updatedAt);
+  }
+  const withDate = (date) => (date ? { lastModified: date } : {});
+
+  const pages = [
+    { url: SITE_URL, ...withDate(newestProduct) },
+    { url: `${SITE_URL}/allproducts`, ...withDate(newestProduct) },
+    { url: `${SITE_URL}/category`, ...withDate(newestProduct) },
+    { url: `${SITE_URL}/about` },
+    { url: `${SITE_URL}/contact` },
+    ...POLICY_PAGES.map((path) => ({
+      url: `${SITE_URL}${path}`,
+      ...(Number.isNaN(policyDate.getTime()) ? {} : { lastModified: policyDate }),
+    })),
+    ...categories
+      // Empty categories are thin pages; leave them out until they have products.
+      .filter((c) => newestByCategory.has(c.id))
+      .map((c) => ({
+        url: `${SITE_URL}/category/${encodeURIComponent(c.slug)}`,
+        lastModified: newestByCategory.get(c.id),
+      })),
+    ...products.map((p) => ({
+      url: `${SITE_URL}/${encodeURIComponent(p.slug)}`,
+      lastModified: p.updatedAt,
+      ...(p.mainImage ? { images: [absoluteUrl(p.mainImage)] } : {}),
+    })),
+  ];
+
+  return pages;
 }

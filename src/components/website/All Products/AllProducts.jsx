@@ -42,6 +42,7 @@ import { useDebounce } from "@/lib/useDebounce";
 import { useCartWithSession } from "@/lib/cartStore";
 import { useWishlistWithSession } from "@/lib/wishlistStore";
 import MergedProductCard from "@/components/productCard/MargedProductCard";
+import ShopHeading from "./ShopHeading";
 
 // Max price constant — change if your products go higher
 const MAX_PRICE = 200000;
@@ -496,27 +497,7 @@ export default function AllProducts() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 70% 50%, white 0%, transparent 60%)",
-          }}
-        />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-10 relative z-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5">
-            Our Store
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-            Product Catalog
-          </h1>
-          <p className="mt-2 text-sm max-w-md leading-relaxed">
-            Explore our full collection — filter, sort, and discover exactly
-            what you need.
-          </p>
-        </div>
-      </div>
+      <ShopHeading />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8">
         <div className="flex flex-col lg:flex-row gap-7">

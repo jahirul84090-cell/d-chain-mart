@@ -3,7 +3,7 @@
 import { notFound } from "next/navigation";
 import SingleProductDetail from "@/components/website/single product/SingleProduct";
 import RelatedProducts from "@/components/others/RelatedProducts";
-import { toJsonLd } from "@/lib/jsonld";
+import { absoluteUrl, toJsonLd } from "@/lib/jsonld";
 import { cache } from "react";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -207,11 +207,12 @@ export default async function ProductPage({ params }) {
       truncate(cleanText(product.shortdescription || product.description), 5000) ||
       product.name,
     category: product.category?.name || undefined,
-    image: images,
+    image: images.map(absoluteUrl),
     sku: String(product.id),
     productID: String(product.id),
     url: productUrl,
-    brand: { "@type": "Brand", name: product.brand || SITE_NAME },
+    // No brand: products don't record their manufacturer, and naming the
+    // store as the brand would be misleading.
     ...(product.availableColors ? { color: product.availableColors } : {}),
     ...(product.availableSizes ? { size: product.availableSizes } : {}),
 

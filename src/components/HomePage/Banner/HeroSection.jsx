@@ -127,8 +127,10 @@ export default function HeroSection({ sliderProducts }) {
               {/* Text Content - Apply entrance animation via motion.div */}
               <motion.div
                 className="absolute inset-0 flex items-center px-8 md:px-24"
-                initial="hidden"
-                animate={index === selectedIndex ? "visible" : "hidden"} // Only animate content if slide is active
+                // The first slide is visible in the server HTML (fast LCP);
+                // later slides animate in when they become active.
+                initial={index === 0 ? false : "hidden"}
+                animate={index === selectedIndex ? "visible" : "hidden"}
                 variants={contentVariants}
               >
                 <div className="max-w-3xl text-white space-y-7 z-10">
@@ -154,11 +156,14 @@ export default function HeroSection({ sliderProducts }) {
                     className="flex flex-col sm:flex-row items-start gap-6 pt-6"
                     variants={itemVariants}
                   >
-                    <Link href={`/${slide.slug}`} legacyBehavior passHref>
-                      <Button className="w-fit bg-primary text-primary-foreground px-10 py-3 md:py-7 rounded-lg text-lg font-bold uppercase tracking-wider shadow-xl hover:bg-primary/90 transition-all duration-300 ring-2 ring-transparent hover:ring-white/50">
-                        Shop Now
-                      </Button>
-                    </Link>
+                    <Button
+                      asChild
+                      className="w-fit bg-primary text-primary-foreground px-10 py-3 md:py-7 rounded-lg text-lg font-bold uppercase tracking-wider shadow-xl hover:bg-primary/90 transition-all duration-300 ring-2 ring-transparent hover:ring-white/50"
+                    >
+                      <Link href={`/${slide.slug}`} aria-label={`Shop now: ${slide.name}`}>
+                        Shop now
+                      </Link>
+                    </Button>
 
                     {/* Price styling refined for emphasis */}
                     <div className="flex items-center text-white font-sans">

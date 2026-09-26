@@ -218,11 +218,9 @@ const WishlistDropdown = () => {
 
         <DropdownMenuSeparator />
         <div className="p-4 pt-0">
-          <Link href="/wishlist" passHref legacyBehavior>
-            <Button variant="outline" className="w-full py-3 font-bold text-sm">
-              Go to Wishlist Page
-            </Button>
-          </Link>
+          <Button asChild variant="outline" className="w-full py-3 font-bold text-sm">
+            <Link href="/wishlist">View wishlist</Link>
+          </Button>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -346,23 +344,20 @@ const CartDropdown = () => {
             </span>
           </div>
           <div className="flex gap-2 flex-col">
-            <Link href="/cart" passHref legacyBehavior>
-              <Button
-                variant="outline"
-                className="w-full cursor-pointer py-3 font-bold text-sm"
-                disabled={cartItems.length === 0}
-              >
-                Go to Cart
+            {cartItems.length === 0 ? (
+              <Button asChild className="w-full py-3 font-semibold text-sm">
+                <Link href="/allproducts">Start shopping</Link>
               </Button>
-            </Link>
-            <Link href="/checkout" passHref legacyBehavior>
-              <Button
-                className="w-full rounded-sm cursor-pointer font-semibold bg-primary hover:bg-primary/90 py-3 text-sm"
-                disabled={cartItems.length === 0}
-              >
-                Checkout
-              </Button>
-            </Link>
+            ) : (
+              <>
+                <Button asChild variant="outline" className="w-full py-3 font-bold text-sm">
+                  <Link href="/cart">View cart</Link>
+                </Button>
+                <Button asChild className="w-full rounded-sm font-semibold bg-primary hover:bg-primary/90 py-3 text-sm">
+                  <Link href="/checkout">Checkout</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DropdownMenuContent>

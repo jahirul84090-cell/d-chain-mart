@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -113,7 +112,6 @@ export default function EcommerceHeader({ initialCategories }) {
 
   const searchInputRef = useRef(null);
 
-  const router = useRouter();
 
   useEffect(() => {
     if (hasInitial) return;
@@ -180,7 +178,6 @@ export default function EcommerceHeader({ initialCategories }) {
     }
   }, [mobileSearchOpen]);
 
-  const handleNavigation = (href) => router.push(href);
 
   const closeMobileSearch = () => setMobileSearchOpen(false);
 
@@ -202,10 +199,10 @@ export default function EcommerceHeader({ initialCategories }) {
     categories.map((cat) => (
       <DropdownMenuItem
         key={cat.slug}
+        asChild
         className="text-sm font-medium hover:bg-primary/10 hover:text-primary cursor-pointer px-4 py-2.5 rounded-md transition-colors"
-        onClick={() => handleNavigation(`/category/${cat.slug}`)}
       >
-        {cat.name}
+        <Link href={`/category/${cat.slug}`}>{cat.name}</Link>
       </DropdownMenuItem>
     ))
   );
@@ -213,11 +210,11 @@ export default function EcommerceHeader({ initialCategories }) {
   const mobileCategoryButtons = categories.map((cat) => (
     <SheetClose asChild key={cat.slug}>
       <Button
+        asChild
         variant="outline"
         className="justify-start truncate text-sm font-medium hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
-        onClick={() => handleNavigation(`/category/${cat.slug}`)}
       >
-        {cat.name}
+        <Link href={`/category/${cat.slug}`}>{cat.name}</Link>
       </Button>
     </SheetClose>
   ));

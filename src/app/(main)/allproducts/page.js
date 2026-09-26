@@ -2,8 +2,9 @@
 
 import AllProducts from "@/components/website/All Products/AllProducts";
 import React, { Suspense } from "react";
-import PageLoader from "@/components/others/PageLoader";
-import { toJsonLd } from "@/lib/jsonld";
+import { productListJsonLd, toJsonLd } from "@/lib/jsonld";
+import ShopHeading from "@/components/website/All Products/ShopHeading";
+import MergedProductCard from "@/components/productCard/MargedProductCard";
 import { getLatestProducts, safely } from "@/lib/storefront";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ export default async function AllProductsPage() {
     description:
       "Browse all products at D Chin Mart. Discover new arrivals, best deals, and trending items with fast delivery across Bangladesh.",
     url: PAGE_URL,
-    inLanguage: ["bn", "en"],
+    inLanguage: "en-BD",
     isPartOf: {
       "@type": "WebSite",
       name: SITE_NAME,
@@ -138,53 +139,12 @@ export default async function AllProductsPage() {
     }),
   };
 
-  // ── ItemList JSON-LD ────────────────────────────────────────────────────────
-  // This is what powers Google's product carousel in search results.
-  // Only emit if we have real product data.
-  const itemListJsonLd =
-    products.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          name: `All Products — ${SITE_NAME}`,
-          url: PAGE_URL,
-          numberOfItems: products.length,
-          itemListElement: products.slice(0, 50).map((product, index) => {
-            const productUrl = `${SITE_URL}/product/${product.slug}`;
-            const imageUrl =
-              product.images?.[0]?.url || product.mainImage || null;
-
-            return {
-              "@type": "ListItem",
-              position: index + 1,
-              url: productUrl,
-              name: product.name,
-              item: {
-                "@type": "Product",
-                name: product.name,
-                url: productUrl,
-                ...(imageUrl && { image: imageUrl }),
-                ...(product.category?.name && {
-                  category: product.category.name,
-                }),
-                offers: {
-                  "@type": "Offer",
-                  priceCurrency: "BDT",
-                  price: String(product.price ?? ""),
-                  availability:
-                    (product.stockAmount ?? 1) > 0
-                      ? "https://schema.org/InStock"
-                      : "https://schema.org/OutOfStock",
-                  seller: {
-                    "@type": "Organization",
-                    name: SITE_NAME,
-                  },
-                },
-              },
-            };
-          }),
-        }
-      : null;
+  // ── ItemList JSON-LD (summary format: each entry links to the product page)
+  const itemListJsonLd = productListJsonLd({
+    products,
+    pageUrl: PAGE_URL,
+    name: `All Products — ${SITE_NAME}`,
+  });
 
   return (
     <>
@@ -209,11 +169,28 @@ export default async function AllProductsPage() {
       )}
 
       {/* AllProducts reads filters from the URL, so it needs a Suspense boundary. */}
-      <Suspense
-        fallback={<PageLoader label="Loading products…" />}
-      >
+      <Suspense fallback={<ShopFallback products={products} />}>
         <AllProducts />
       </Suspense>
     </>
+  );
+}
+// Server-rendered first paint of the shop: the same heading plus the latest
+// products as real links, so search engines see the catalogue without running
+// JavaScript. The interactive AllProducts view replaces it once loaded.
+function ShopFallback({ products }) {
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <ShopHeading />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8">
+        <ul className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 xl:grid-cols-4">
+          {products.slice(0, 24).map((product) => (
+            <li key={product.id}>
+              <MergedProductCard product={product} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

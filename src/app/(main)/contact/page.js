@@ -23,7 +23,7 @@ const supportPhone =
 export const metadata = {
   metadataBase: new URL(siteUrl),
 
-  title: "Contact Us",
+  title: "Contact Us – Customer Support in Bangladesh",
 
   description:
     "Contact D Chin Mart Bangladesh for order support, product inquiries, delivery updates, return help, EMI questions and customer service assistance.",

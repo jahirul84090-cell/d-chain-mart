@@ -11,7 +11,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { toJsonLd } from "@/lib/jsonld";
 
 export const metadata = {
-  title: "About Us",
+  title: "About Us – Online Electronics Shop in Bangladesh",
   description: `Learn about ${SITE_NAME} — a Bangladeshi online store for mobiles, laptops, electronics and accessories with cash on delivery, EMI and fast delivery nationwide.`,
   alternates: { canonical: "/about" },
   openGraph: {

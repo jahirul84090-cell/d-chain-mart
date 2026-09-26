@@ -3,8 +3,8 @@ import { faq } from "@/lib/policies";
 import { toJsonLd } from "@/lib/jsonld";
 
 export const metadata = {
-  title: "FAQ",
-  description: faq.intro,
+  title: faq.seoTitle,
+  description: faq.metaDescription,
   alternates: { canonical: faq.path },
 };
 

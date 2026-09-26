@@ -198,6 +198,9 @@ export const returnPolicy = {
 
 export const shippingPolicy = {
   title: "Shipping Policy",
+  seoTitle: "Shipping & Delivery – Times and Charges",
+  metaDescription:
+    "Delivery times, shipping charges and cash on delivery details for orders across Bangladesh, including Dhaka and all 64 districts.",
   path: "/shipping-policy",
   intro: "We deliver across Bangladesh with cash on delivery available.",
   sections: [
@@ -243,6 +246,9 @@ export const shippingPolicy = {
 
 export const emiPolicy = {
   title: "EMI Policy",
+  seoTitle: "EMI Policy – Pay in Monthly Instalments",
+  metaDescription:
+    "How EMI works at D Chin Mart: eligible products, 3 and 6 month plans, down payment, required documents and approval in Bangladesh.",
   path: "/emi-policy",
   intro: "Buy now and pay in monthly installments. This page explains how EMI works at our store.",
   sections: [
@@ -297,6 +303,9 @@ export const emiPolicy = {
 
 export const faq = {
   title: "Frequently Asked Questions",
+  seoTitle: "FAQ – Orders, Delivery, Returns and EMI",
+  metaDescription:
+    "Answers to common questions about ordering, cash on delivery, delivery times, returns, refunds, warranty and EMI plans at D Chin Mart.",
   path: "/faq",
   intro: "Quick answers to the questions we hear most often.",
   items: [

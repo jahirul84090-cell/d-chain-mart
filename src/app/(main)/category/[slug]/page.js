@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { toJsonLd } from "@/lib/jsonld";
+import { productListJsonLd, toJsonLd } from "@/lib/jsonld";
 
 export const dynamic = "force-dynamic";
 
@@ -286,41 +286,13 @@ export default async function CategoryProductsPage({ params, searchParams }) {
     },
   };
 
-  const itemListJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    "@id": `${pageUrl}#itemlist`,
+  const itemListJsonLd = productListJsonLd({
+    products: category.products,
+    pageUrl,
     name: `${category.name} Products`,
-    url: pageUrl,
-    numberOfItems: category.products.length,
-    itemListElement: category.products.map((product, index) => ({
-      "@type": "ListItem",
-      position: (page - 1) * PRODUCTS_PER_PAGE + index + 1,
-      url: `${siteUrl}/product/${product.slug}`,
-      name: product.name,
-      item: {
-        "@type": "Product",
-        name: product.name,
-        url: `${siteUrl}/product/${product.slug}`,
-        image: makeAbsoluteUrl(getProductImage(product)),
-        category: category.name,
-        offers: {
-          "@type": "Offer",
-          priceCurrency: "BDT",
-          price: String(product.price || 0),
-          availability:
-            Number(product.stockAmount ?? 0) > 0
-              ? "https://schema.org/InStock"
-              : "https://schema.org/OutOfStock",
-          itemCondition: "https://schema.org/NewCondition",
-          seller: {
-            "@type": "Organization",
-            name: siteName,
-          },
-        },
-      },
-    })),
-  };
+    offset: (page - 1) * PRODUCTS_PER_PAGE,
+  });
+
 
   return (
     <>
@@ -338,12 +310,12 @@ export default async function CategoryProductsPage({ params, searchParams }) {
         }}
       />
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: toJsonLd(itemListJsonLd),
-        }}
-      />
+      {itemListJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: toJsonLd(itemListJsonLd) }}
+        />
+      )}
 
       <section className="bg-slate-50">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">

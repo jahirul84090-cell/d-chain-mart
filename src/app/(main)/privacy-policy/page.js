@@ -2,8 +2,8 @@ import InfoPage from "@/components/others/InfoPage";
 import { privacyPolicy as page, POLICY_UPDATED } from "@/lib/policies";
 
 export const metadata = {
-  title: page.title,
-  description: page.intro,
+  title: page.seoTitle || page.title,
+  description: page.metaDescription || page.intro,
   alternates: { canonical: page.path },
 };
 
