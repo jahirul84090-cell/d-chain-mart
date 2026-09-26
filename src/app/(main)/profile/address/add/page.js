@@ -1,20 +1,16 @@
-// app/(main)/profile/address/create/page.js
-
+import { Suspense } from "react";
 import AddAddress from "@/components/User/Profile/Address/CreateAddress";
-import React from "react";
+import PageLoader from "@/components/others/PageLoader";
 
 export const metadata = {
-  title: "Add New Address",
-  description:
-    "Add a new shipping or billing address to your account for faster and more convenient checkout.",
+  title: "Manage Address",
+  robots: { index: false, follow: false },
 };
 
-const page = () => {
+export default function Page() {
   return (
-    <>
+    <Suspense fallback={<PageLoader />}>
       <AddAddress />
-    </>
+    </Suspense>
   );
-};
-
-export default page;
+}

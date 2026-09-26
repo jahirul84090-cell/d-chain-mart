@@ -431,7 +431,7 @@ export default function AllOrders() {
                   <p className="text-lg mb-4">
                     It looks like you haven't placed any orders yet.{" "}
                   </p>
-                  <Link href="/products">
+                  <Link href="/allproducts">
                     <Button className="mt-4 rounded-full bg-primary text-white font-semibold px-6">
                       Start Shopping
                     </Button>

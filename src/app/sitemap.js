@@ -13,6 +13,12 @@ export default async function sitemap() {
     { path: "/category", changeFrequency: "weekly", priority: 0.8 },
     { path: "/about", changeFrequency: "monthly", priority: 0.4 },
     { path: "/contact", changeFrequency: "monthly", priority: 0.4 },
+    { path: "/faq", changeFrequency: "monthly", priority: 0.4 },
+    { path: "/shipping-policy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/return-policy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/emi-policy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/privacy-policy", changeFrequency: "yearly", priority: 0.2 },
+    { path: "/terms-and-conditions", changeFrequency: "yearly", priority: 0.2 },
   ].map(({ path, ...rest }) => ({
     url: `${SITE_URL}${path}`,
     lastModified: now,

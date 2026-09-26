@@ -1,5 +1,7 @@
-// lib/email.js
-import nodemailer from "nodemailer";
+import { escapeHtml, sendMail } from "./mailer";
+import { formatBDT, orderNumber } from "./format";
+
+const SITE_NAME = process.env.SITE_NAME || "D Chin Mart";
 
 export async function sendInvoiceEmail({
   recipientEmail,
@@ -10,31 +12,20 @@ export async function sendInvoiceEmail({
   pdfBuffer,
 }) {
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      auth: {
-        user: process.env.SMTPEMAIL,
-        pass: process.env.SMTPASSWORD,
-      },
-    });
-
-    const mailOptions = {
-      from: `"${process.env.EMAIL_FROM_NAME || "Your Store"}" <${
-        process.env.EMAIL_USER
-      }>`,
+    const ref = orderNumber(orderId);
+    await sendMail({
       to: recipientEmail,
-      subject: `Invoice for Order #${orderId}`,
+      subject: `Your invoice for order ${ref} — ${SITE_NAME}`,
+      text: `Dear ${recipientName || "customer"},\n\nThank you for shopping with ${SITE_NAME}. Your invoice ${invoiceNumber} for order ${ref} (total ${formatBDT(orderTotal)}) is attached.\n\n${SITE_NAME}`,
       html: `
-        <p>Dear ${recipientName},</p>
-        <p>Thank you for your recent purchase. Please find the attached invoice for your order.</p>
-        <p>Order details:</p>
+        <p>Dear ${escapeHtml(recipientName || "customer")},</p>
+        <p>Thank you for shopping with ${SITE_NAME}. Your invoice is attached.</p>
         <ul>
-          <li>Order ID: ${orderId}</li>
-          <li>Invoice Number: ${invoiceNumber}</li>
-          <li>Total: $${orderTotal.toFixed(2)}</li>
+          <li>Order: <strong>${ref}</strong></li>
+          <li>Invoice: ${escapeHtml(invoiceNumber)}</li>
+          <li>Total: <strong>${formatBDT(orderTotal)}</strong></li>
         </ul>
-        <p>Best regards,<br/>Your Store Team</p>
+        <p>Best regards,<br/>${SITE_NAME}</p>
       `,
       attachments: [
         {
@@ -43,13 +34,10 @@ export async function sendInvoiceEmail({
           contentType: "application/pdf",
         },
       ],
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Invoice email sent to ${recipientEmail}`);
+    });
     return { success: true };
   } catch (error) {
-    console.error("Error sending invoice email:", error);
-    return { success: false, error: error.message };
+    console.error("sendInvoiceEmail: failed", error.message);
+    return { success: false, error: "Failed to send invoice email." };
   }
 }

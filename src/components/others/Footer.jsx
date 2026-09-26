@@ -114,12 +114,10 @@ const Footer = async () => {
   ];
 
   const companyLinks = [
-    { label: "About Us", href: "/about-us" },
-    { label: "Blog", href: "/blog" },
-    { label: "Loan Policy", href: "/loan-policy" },
+    { label: "About Us", href: "/about" },
     { label: "Apply for EMI", href: "/loans/apply" },
     { label: "My Orders", href: "/orders" },
-    { label: "My Account", href: "/account" },
+    { label: "My Account", href: "/profile" },
   ];
 
   const trustItems = [

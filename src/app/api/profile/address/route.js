@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/user";
 import { NextResponse } from "next/server";
+import { validateAddress } from "@/lib/address";
 
 export async function GET(request) {
   try {
@@ -56,47 +57,29 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const data = await request.json();
-    const { street, city, state, zipCode, country, phoneNumber, isDefault } =
-      data;
-
-    if (!street || !city || !country) {
-      return NextResponse.json(
-        { error: "Missing required fields: street, city, country" },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const { data, error } = validateAddress(body);
+    if (error) return NextResponse.json({ error }, { status: 400 });
 
     const address = await prisma.$transaction(async (tx) => {
-      if (isDefault) {
+      // The first address, or one marked default, becomes the default.
+      const hasDefault = await tx.address.count({ where: { userId: user.id, isDefault: true } });
+      const makeDefault = !!body.isDefault || hasDefault === 0;
+      if (makeDefault) {
         await tx.address.updateMany({
           where: { userId: user.id, isDefault: true },
           data: { isDefault: false },
         });
       }
-
       return tx.address.create({
-        data: {
-          userId: user.id,
-          street,
-          city,
-          state,
-          zipCode,
-          country,
-          phoneNumber,
-          isDefault: isDefault || false,
-        },
-        include: { user: { select: { email: true } } },
+        data: { ...data, userId: user.id, isDefault: makeDefault },
       });
     });
 
     return NextResponse.json({ address }, { status: 201 });
   } catch (error) {
     console.error("Error creating address:", error);
-    return NextResponse.json(
-      { error: "Failed to create address" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create address" }, { status: 500 });
   }
 }
 
@@ -107,56 +90,31 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const data = await request.json();
-    const {
-      id,
-      street,
-      city,
-      state,
-      zipCode,
-      country,
-      phoneNumber,
-      isDefault,
-    } = data;
+    const body = await request.json();
+    if (!body.id) return NextResponse.json({ error: "Missing address ID" }, { status: 400 });
+    const { data, error } = validateAddress(body);
+    if (error) return NextResponse.json({ error }, { status: 400 });
 
-    if (!id || !street || !city || !country) {
-      return NextResponse.json(
-        { error: "Missing required fields: id, street, city, country" },
-        { status: 400 }
-      );
-    }
+    const existing = await prisma.address.findFirst({ where: { id: body.id, userId: user.id } });
+    if (!existing) return NextResponse.json({ error: "Address not found" }, { status: 404 });
 
     const address = await prisma.$transaction(async (tx) => {
-      if (isDefault) {
+      if (body.isDefault) {
         await tx.address.updateMany({
           where: { userId: user.id, isDefault: true },
           data: { isDefault: false },
         });
       }
-
       return tx.address.update({
-        where: { id, userId: user.id },
-        data: {
-          street,
-          city,
-          state,
-          zipCode,
-          country,
-          phoneNumber,
-          isDefault: isDefault || false,
-          updatedAt: new Date(),
-        },
-        include: { user: { select: { email: true } } },
+        where: { id: body.id },
+        data: { ...data, isDefault: body.isDefault ? true : existing.isDefault },
       });
     });
 
     return NextResponse.json({ address }, { status: 200 });
   } catch (error) {
     console.error("Error updating address:", error);
-    return NextResponse.json(
-      { error: "Failed to update address" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update address" }, { status: 500 });
   }
 }
 

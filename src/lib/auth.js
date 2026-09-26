@@ -51,6 +51,10 @@ export const authOptions = {
             throw new Error("No account found with this email");
           }
 
+          if (user.isBlocked) {
+            throw new Error("This account has been suspended. Please contact support.");
+          }
+
           if (!user.emailVerified) {
             throw new Error(
               "Email not verified. Please check your email for the OTP or resend it at the verification page."
@@ -96,6 +100,10 @@ export const authOptions = {
               ],
             },
           });
+
+          if (existingUser?.isBlocked) {
+            return "/auth/error?error=AccountSuspended";
+          }
 
           if (!existingUser) {
             const newUser = await prisma.user.create({
@@ -169,10 +177,11 @@ export const authOptions = {
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { role: true, email: true, name: true, image: true },
+          select: { role: true, email: true, name: true, image: true, isBlocked: true },
         });
 
-        if (!dbUser) {
+        // Deleted or blocked accounts are signed out on their next request.
+        if (!dbUser || dbUser.isBlocked) {
           return null;
         }
         token.role = dbUser.role;

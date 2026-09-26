@@ -1,0 +1,20 @@
+import InfoPage from "@/components/others/InfoPage";
+import { shippingPolicy as page, POLICY_UPDATED } from "@/lib/policies";
+
+export const metadata = {
+  title: page.title,
+  description: page.intro,
+  alternates: { canonical: page.path },
+};
+
+export default function Page() {
+  return (
+    <InfoPage
+      title={page.title}
+      intro={page.intro}
+      updated={POLICY_UPDATED}
+      path={page.path}
+      sections={page.sections}
+    />
+  );
+}

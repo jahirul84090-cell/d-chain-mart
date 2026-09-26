@@ -363,7 +363,7 @@ export default function UserDashboard() {
                   <p className="text-lg mb-4">
                     You don't have any recent orders.
                   </p>
-                  <Link href="/products" passHref>
+                  <Link href="/allproducts" passHref>
                     <Button className="mt-4 rounded-sm bg-primary text-white font-semibold px-6">
                       Start Shopping
                     </Button>

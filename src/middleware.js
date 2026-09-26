@@ -11,6 +11,7 @@ const publicApiPaths = [
   { path: "/api/admin/categories/categoryproduct", method: "GET" },
   { path: "/api/admin/product/", method: "GET", prefix: true },
   { path: "/api/auth", method: "ALL", prefix: true },
+  { path: "/api/contact", method: "POST" },
   { path: "/api/payment/sslcommerz", method: "ALL", prefix: true },
 ];
 
@@ -66,8 +67,13 @@ export async function middleware(req) {
       return NextResponse.redirect(loginUrl);
     }
 
-    if (pathname.startsWith("/dashboard") && token.role !== "SUPER_ADMIN") {
+    // Staff (ADMIN, SUPER_ADMIN) use the dashboard; only SUPER_ADMIN manages customers.
+    const isStaff = token.role === "ADMIN" || token.role === "SUPER_ADMIN";
+    if (pathname.startsWith("/dashboard") && !isStaff) {
       return NextResponse.redirect(new URL("/", req.url));
+    }
+    if (pathname.startsWith("/dashboard/users") && token.role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     return withNoIndex(NextResponse.next(), pathname);

@@ -139,7 +139,7 @@ export default function UserLoanDetailsPage() {
         </Alert>
 
         <Button asChild variant="outline" className="mt-4">
-          <Link href="/user/loans">
+          <Link href="/loans/details">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Loans
           </Link>
@@ -155,7 +155,7 @@ export default function UserLoanDetailsPage() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex items-center justify-between gap-4">
           <Button asChild variant="outline">
-            <Link href="/user/loans">
+            <Link href="/loans/details">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Link>

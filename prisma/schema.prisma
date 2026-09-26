@@ -21,6 +21,7 @@ model User {
   name                    String?
   role                    Role      @default(USER)
   isBlocked               Boolean   @default(false)
+  phoneNumber             String?
   image                   String?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -620,4 +621,19 @@ model InventorySale {
   @@index([ownerId])
   @@index([productId])
   @@index([month, year])
+}
+
+// Messages sent from the Contact page, handled in the admin panel.
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+  @@index([email, createdAt])
 }

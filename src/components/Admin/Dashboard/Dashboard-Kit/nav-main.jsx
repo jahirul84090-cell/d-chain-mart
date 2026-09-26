@@ -20,27 +20,29 @@ import {
 } from "@/components/ui/sidebar";
 import Link from "next/link";
 
+// A link is active on its own page and on pages below it
+// (e.g. "Orders" stays highlighted on /dashboard/order/123).
+const sectionRoot = (url) => url.split("/").slice(0, 3).join("/");
+const matches = (url, pathname) =>
+  url !== "#" &&
+  (url === pathname ||
+    (url !== "/dashboard" && pathname.startsWith(sectionRoot(url) + "/")));
+
 export function NavMain({ items, user }) {
   const pathname = usePathname();
-  const role = user?.role;
-
-  // Filter out the 'Users' item if the user is not a 'super admin'
-  const filteredItems = items.filter((item) => {
-    if (item.title === "Users" && role !== "SUPER_ADMIN") {
-      return false;
-    }
-    return true;
-  });
+  // Customer management is for super admins only.
+  const filteredItems = items.filter(
+    (item) => !item.superAdminOnly || user?.role === "SUPER_ADMIN"
+  );
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>Store management</SidebarGroupLabel>
       <SidebarMenu>
         {filteredItems.map((item) => {
           const isActive =
-            item.url === pathname ||
-            (item.items &&
-              item.items.some((subItem) => subItem.url === pathname));
+            matches(item.url, pathname) ||
+            (item.items && item.items.some((subItem) => matches(subItem.url, pathname)));
 
           return item.items && item.items.length > 0 ? (
             <Collapsible
@@ -55,7 +57,7 @@ export function NavMain({ items, user }) {
                     tooltip={item.title}
                     className={
                       isActive
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                         : "hover:bg-gray-100"
                     }
                   >
@@ -71,8 +73,8 @@ export function NavMain({ items, user }) {
                         <SidebarMenuSubButton
                           asChild
                           className={
-                            subItem.url === pathname
-                              ? "bg-gray-200"
+                            matches(subItem.url, pathname)
+                              ? "bg-primary/10 font-medium text-primary"
                               : "hover:bg-gray-200"
                           }
                         >
@@ -93,7 +95,7 @@ export function NavMain({ items, user }) {
                 tooltip={item.title}
                 className={
                   isActive
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                     : "hover:bg-gray-100"
                 }
               >

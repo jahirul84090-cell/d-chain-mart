@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { sendMail } from "./mailer";
 
 const SITE_NAME = process.env.SITE_NAME || "D Chin Mart";
 
@@ -32,17 +32,7 @@ export async function sendOtpEmail({ email, name, otpCode, type = "verify" }) {
   const year = new Date().getFullYear();
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_SERVER_HOST,
-      port: process.env.EMAIL_SERVER_PORT,
-      auth: {
-        user: process.env.SMTPEMAIL,
-        pass: process.env.SMTPASSWORD,
-      },
-    });
-
-    await transporter.sendMail({
-      from: `"${SITE_NAME}" <${process.env.EMAIL_FROM}>`,
+    await sendMail({
       to: email,
       subject: copy.subject,
       text: `Hello ${name || "there"},\n\n${copy.intro}\n\n${otpCode}\n\nThis code expires in 10 minutes.\n\n${copy.footer}\n\n${SITE_NAME}`,

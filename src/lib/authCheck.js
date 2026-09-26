@@ -4,13 +4,17 @@ import { NextResponse } from "next/server";
 import { authOptions } from "./auth";
 import { prisma } from "./prisma";
 
+// Staff roles. ADMIN runs the store; SUPER_ADMIN can also manage
+// customers, roles and account blocking.
+export const STAFF_ROLES = ["ADMIN", "SUPER_ADMIN"];
+
 /**
- * Admin guard for API route handlers.
- * Returns a JSON error response when the caller is not a SUPER_ADMIN,
- * otherwise sets `request.user` and returns null.
- * Applies to every HTTP method (GET, POST, PUT, PATCH, DELETE, ...).
+ * Staff guard for API route handlers (every HTTP method).
+ * Returns a JSON error response when the caller is not staff (or not a
+ * SUPER_ADMIN when `superAdminOnly` is set); otherwise sets `request.user`
+ * and returns null.
  */
-export async function requireAuthenticatedUser(request) {
+export async function requireAuthenticatedUser(request, { superAdminOnly = false } = {}) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -20,14 +24,15 @@ export async function requireAuthenticatedUser(request) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true },
+      select: { id: true, role: true, isBlocked: true },
     });
 
-    if (!user) {
+    if (!user || user.isBlocked) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (user.role !== "SUPER_ADMIN") {
+    const allowed = superAdminOnly ? user.role === "SUPER_ADMIN" : STAFF_ROLES.includes(user.role);
+    if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -60,16 +65,16 @@ export async function requireSignedInUser() {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, role: true },
+      select: { id: true, role: true, isBlocked: true },
     });
 
-    if (!user) {
+    if (!user || user.isBlocked) {
       return {
         response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       };
     }
 
-    return { user, isAdmin: user.role === "SUPER_ADMIN" };
+    return { user, isAdmin: STAFF_ROLES.includes(user.role) };
   } catch (error) {
     console.error("requireSignedInUser: Error", error);
     return {

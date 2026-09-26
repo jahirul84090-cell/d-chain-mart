@@ -631,6 +631,7 @@ export default function AllProducts() {
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-border shadow-lg">
                     <SelectItem value="newest">Newest Arrivals</SelectItem>
+                    <SelectItem value="deals">Best Deals</SelectItem>
                     <SelectItem value="oldest">Oldest First</SelectItem>
                     <SelectItem value="price-asc">Price: Low → High</SelectItem>
                     <SelectItem value="price-desc">Price: High → Low</SelectItem>

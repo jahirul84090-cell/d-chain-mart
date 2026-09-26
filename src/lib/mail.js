@@ -1,40 +1,13 @@
-import nodemailer from "nodemailer";
+import { sendMail as send } from "./mailer";
 
-let transporter = null;
-
-export function getMailTransporter() {
-  if (transporter) return transporter;
-
-   transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_SERVER_HOST,
-        port: process.env.EMAIL_SERVER_PORT,
-        auth: {
-          user: process.env.SMTPEMAIL,
-          pass: process.env.SMTPASSWORD,
-        },
-      });
-  
-
-  return transporter;
-}
-
+// Non-throwing wrapper used by loan notifications.
 export async function sendMail({ to, subject, html, text }) {
   if (!to) return { success: false, reason: "Missing recipient email" };
-
   try {
-    const mailer = getMailTransporter();
-
-    const info = await mailer.sendMail({
-     from: `"D CHIN MART" <${process.env.EMAIL_FROM}>`,
-      to,
-      subject,
-      html,
-      text,
-    });
-
-    return { success: true, messageId: info.messageId };
+    await send({ to, subject, html, text });
+    return { success: true };
   } catch (error) {
-    console.error("[SEND_MAIL_ERROR]", error);
-    return { success: false, reason: error.message };
+    console.error("[SEND_MAIL_ERROR]", error.message);
+    return { success: false, reason: "Email could not be sent" };
   }
 }

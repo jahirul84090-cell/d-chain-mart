@@ -1,21 +1,10 @@
-// components/user-manager.jsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { Trash, SquareArrowOutUpRight } from "lucide-react";
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { toast } from "react-toastify";
+import { Ban, ExternalLink, Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,398 +15,313 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useDebounce } from "@/lib/useDebounce";
-import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/format";
+import AdminPageHeader from "@/components/Admin/Dashboard/AdminPageHeader";
+
+const ROLE_LABEL = { USER: "Customer", ADMIN: "Admin", SUPER_ADMIN: "Super admin" };
+const FILTERS = [
+  ["ALL", "Everyone"],
+  ["USER", "Customers"],
+  ["ADMIN", "Admins"],
+  ["SUPER_ADMIN", "Super admins"],
+  ["BLOCKED", "Blocked"],
+];
+
+const initials = (name, email) =>
+  (name || email || "?")
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+function StatusBadge({ user }) {
+  if (user.isBlocked) {
+    return <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Blocked</span>;
+  }
+  if (!user.emailVerified) {
+    return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">Unverified</span>;
+  }
+  return <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">Active</span>;
+}
 
 export default function UserManager() {
   const { data: session } = useSession();
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN";
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500); // Debounce the search term
-  const [roleFilter, setRoleFilter] = useState("ALL");
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingStates, setLoadingStates] = useState({});
+  const debouncedSearch = useDebounce(search, 400);
+  const [filter, setFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [confirm, setConfirm] = useState(null); // { type, user, role? }
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [userToUpdateRole, setUserToUpdateRole] = useState(null);
-  const [newRole, setNewRole] = useState("");
-
-  const router = useRouter();
-  useEffect(() => {
-    // The search function now depends on the debounced value.
-    fetchUsers();
-  }, [page, debouncedSearch, roleFilter]); // Update dependency array to use debouncedSearch
-
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    const params = new URLSearchParams({
-      page,
-      role: roleFilter,
-      search: debouncedSearch, // Use the debounced value in the API call
-    }).toString();
-
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
     try {
+      const params = new URLSearchParams({ page, role: filter, search: debouncedSearch });
       const res = await fetch(`/api/admin/users?${params}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch users");
-      }
+      if (!res.ok) throw new Error();
       const data = await res.json();
       setUsers(data.users);
       setTotal(data.total);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Failed to load user data.");
+    } catch {
+      toast.error("Could not load customers.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
+  }, [page, filter, debouncedSearch]);
 
-  const confirmChangeRole = (userId, currentRole, targetRole) => {
-    if (session.user.id === userId) {
-      toast.error("You cannot change your own role.");
-      return;
-    }
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
-    setUserToUpdateRole({
-      id: userId,
-      currentRole,
-      name: users.find((u) => u.id === userId)?.name,
-    });
-    setNewRole(targetRole);
-    setShowRoleDialog(true);
-  };
-
-  const handleUpdateRole = async () => {
-    if (!userToUpdateRole || !newRole) return;
-
-    const userId = userToUpdateRole.id;
-    setLoadingStates((prev) => ({ ...prev, [userId]: true }));
-    setShowRoleDialog(false);
-
+  const send = async (method, body, success) => {
+    setBusyId(body.userId);
     try {
       const res = await fetch("/api/admin/users", {
-        method: "PATCH",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role: newRole }),
+        body: JSON.stringify(body),
       });
-
-      if (res.ok) {
-        toast.success("User role updated successfully.");
-        fetchUsers();
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to update user role.");
-      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      toast.success(success);
+      fetchUsers();
     } catch (error) {
-      console.error("Error updating role:", error);
-      toast.error("An unexpected error occurred.");
+      toast.error(error.message);
     } finally {
-      setLoadingStates((prev) => ({ ...prev, [userId]: false }));
+      setBusyId(null);
     }
   };
 
-  const confirmDeleteUser = (user) => {
-    if (session.user.id === user.id) {
-      toast.error("You cannot delete your own account.");
-      return;
-    }
-
-    setUserToDelete(user);
-    setShowDeleteDialog(true);
+  const runConfirmed = () => {
+    const { type, user, role } = confirm;
+    setConfirm(null);
+    if (type === "role") send("PATCH", { userId: user.id, role }, `Role changed to ${ROLE_LABEL[role]}.`);
+    if (type === "block") send("PATCH", { userId: user.id, isBlocked: !user.isBlocked }, user.isBlocked ? "Account unblocked." : "Account blocked.");
+    if (type === "delete") send("DELETE", { userId: user.id }, "Account deleted.");
   };
 
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return;
+  const isSelf = (u) => u.id === session?.user?.id;
 
-    setLoadingStates((prev) => ({ ...prev, [userToDelete.id]: true }));
-    setShowDeleteDialog(false);
+  const Actions = ({ user }) => (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Link href={`/dashboard/users/${user.id}`}>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> View
+        </Button>
+      </Link>
+      {isSuperAdmin && !isSelf(user) && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={busyId === user.id}
+            onClick={() => setConfirm({ type: "block", user })}
+          >
+            {user.isBlocked ? (
+              <><ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> Unblock</>
+            ) : (
+              <><Ban className="h-3.5 w-3.5" aria-hidden="true" /> Block</>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-red-600 hover:text-red-700"
+            disabled={busyId === user.id}
+            onClick={() => setConfirm({ type: "delete", user })}
+            aria-label={`Delete ${user.name || user.email}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
+        </>
+      )}
+    </div>
+  );
 
-    try {
-      const res = await fetch("/api/admin/users", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userToDelete.id }),
-      });
+  const RoleControl = ({ user }) =>
+    isSuperAdmin && !isSelf(user) ? (
+      <Select
+        value={user.role}
+        onValueChange={(role) => role !== user.role && setConfirm({ type: "role", user, role })}
+        disabled={busyId === user.id}
+      >
+        <SelectTrigger className="h-8 w-36" aria-label={`Role for ${user.name || user.email}`}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(ROLE_LABEL).map(([value, label]) => (
+            <SelectItem key={value} value={value}>{label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : (
+      <span className="text-sm text-gray-700">{ROLE_LABEL[user.role]}{isSelf(user) && " (you)"}</span>
+    );
 
-      if (res.ok) {
-        toast.success("User deleted successfully.");
-        fetchUsers();
-      } else {
-        const error = await res.json();
-        toast.error(error.error || "Failed to delete user.");
-      }
-    } catch (error) {
-      console.error("Error deleting user:", error);
-      toast.error("An unexpected error occurred.");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, [userToDelete.id]: false }));
-      setUserToDelete(null);
-    }
-  };
-
-  const handleViewDetails = (userId) => {
-    router.push(`/dashboard/users/${userId}`);
-  };
-
-  const totalPages = Math.ceil(total / 10);
-
-  const getRoleColor = (role) => {
-    switch (role) {
-      case "SUPER_ADMIN":
-        return "bg-purple-500 hover:bg-purple-600";
-      case "ADMIN":
-        return "bg-blue-500 hover:bg-blue-600";
-      case "USER":
-        return "bg-gray-500 hover:bg-gray-600";
-      default:
-        return "bg-gray-400 hover:bg-gray-500";
-    }
-  };
-
-  const formatDate = (dateString) => {
-    const options = { year: "numeric", month: "long", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
+  const confirmText = confirm && {
+    role: {
+      title: `Change role to ${ROLE_LABEL[confirm.role]}?`,
+      body: confirm.role === "USER"
+        ? "They will lose access to the admin dashboard."
+        : confirm.role === "ADMIN"
+        ? "Admins can manage orders, products, reviews, loans and settings, but not customers or roles."
+        : "Super admins have full access, including managing customers and roles.",
+      action: "Change role",
+    },
+    block: confirm.user.isBlocked
+      ? { title: "Unblock this account?", body: "They will be able to sign in and order again.", action: "Unblock" }
+      : { title: "Block this account?", body: "They will be signed out and won't be able to sign in or place orders. Their orders are kept.", action: "Block account" },
+    delete: {
+      title: "Delete this account permanently?",
+      body: "This removes the account, addresses, cart, wishlist and reviews. Customers with orders or EMI records can't be deleted — block them instead.",
+      action: "Delete",
+    },
+  }[confirm.type];
 
   return (
-    <div className="container mx-auto py-10">
-      <ToastContainer position="bottom-right" />
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold">User Management</CardTitle>
-          <CardDescription>
-            View, filter, and manage user accounts and roles. Only Super Admins
-            can make changes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <Input
-              placeholder="Search by name or email..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="w-full md:max-w-sm"
-            />
-            <Select
-              onValueChange={(value) => {
-                setRoleFilter(value);
-                setPage(1);
-              }}
-              value={roleFilter}
-            >
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filter by Role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Roles</SelectItem>
-                <SelectItem value="USER">User</SelectItem>
-                <SelectItem value="ADMIN">Admin</SelectItem>
-                <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="rounded-xl border shadow-sm">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[200px]">Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Member Since</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : users.length > 0 ? (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage
-                            src={user.image || "/placeholder-avatar.png"}
-                          />
-                          <AvatarFallback>
-                            {user.name
-                              ? user.name.slice(0, 2).toUpperCase()
-                              : "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span>{user.name}</span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {user.email}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          onValueChange={(value) =>
-                            confirmChangeRole(user.id, user.role, value)
-                          }
-                          value={user.role}
-                          disabled={
-                            loadingStates[user.id] ||
-                            session?.user?.id === user.id ||
-                            session?.user?.role !== "SUPER_ADMIN"
-                          }
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="Select Role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USER">User</SelectItem>
-                            <SelectItem value="ADMIN">Admin</SelectItem>
-                            <SelectItem value="SUPER_ADMIN">
-                              Super Admin
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
-                      <TableCell className="text-right flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleViewDetails(user.id)}
-                          disabled={!session?.user?.id}
-                        >
-                          <SquareArrowOutUpRight className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => confirmDeleteUser(user)}
-                          disabled={
-                            loadingStates[user.id] ||
-                            session?.user?.id === user.id ||
-                            session?.user?.role !== "SUPER_ADMIN"
-                          }
-                        >
-                          {loadingStates[user.id] ? (
-                            "Deleting..."
-                          ) : (
-                            <>
-                              <Trash className="mr-2 h-4 w-4" /> Delete
-                            </>
-                          )}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="h-24 text-center text-muted-foreground"
-                    >
-                      No users found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={page <= 1}
-            >
-              Previous
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setPage((prev) => prev + 1)}
-              disabled={page >= totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Customers"
+        description={`${total} account${total === 1 ? "" : "s"}. ${isSuperAdmin ? "Change roles, block or remove accounts." : ""}`}
+      />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Are you absolutely sure?</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete the
-              user <strong>{userToDelete?.name}</strong> and their data.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={loadingStates[userToDelete?.id] || false}
-            >
-              {loadingStates[userToDelete?.id] ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Input
+          type="search"
+          placeholder="Search by name or email"
+          aria-label="Search customers"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="sm:max-w-xs"
+        />
+        <Select value={filter} onValueChange={(v) => { setFilter(v); setPage(1); }}>
+          <SelectTrigger className="sm:w-44" aria-label="Filter accounts"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FILTERS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {/* Role Change Confirmation Dialog */}
-      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Role Change</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to change the role of{" "}
-              <strong>{userToUpdateRole?.name}</strong>
-              from **{userToUpdateRole?.currentRole}** to **{newRole}**?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRoleDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdateRole}
-              disabled={loadingStates[userToUpdateRole?.id] || false}
+      <div className="overflow-hidden rounded-xl border bg-white">
+        {loading ? (
+          <div className="flex justify-center py-16" role="status">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
+            <span className="sr-only">Loading customers…</span>
+          </div>
+        ) : users.length === 0 ? (
+          <p className="py-16 text-center text-sm text-gray-500">No accounts match your search.</p>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className="hidden w-full text-sm md:table">
+              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">Orders</th>
+                  <th className="px-4 py-3 font-medium">Joined</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-gray-50/60">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {initials(u.name, u.email)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-gray-900">{u.name || "—"}</p>
+                          <p className="truncate text-gray-500">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><RoleControl user={u} /></td>
+                    <td className="px-4 py-3"><StatusBadge user={u} /></td>
+                    <td className="px-4 py-3 tabular-nums">{u._count?.orders ?? 0}</td>
+                    <td className="px-4 py-3 text-gray-600">{formatDate(u.createdAt)}</td>
+                    <td className="px-4 py-3"><Actions user={u} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Mobile cards */}
+            <ul className="divide-y md:hidden">
+              {users.map((u) => (
+                <li key={u.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-gray-900">{u.name || "—"}</p>
+                      <p className="truncate text-sm text-gray-500">{u.email}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {u._count?.orders ?? 0} orders · joined {formatDate(u.createdAt)}
+                      </p>
+                    </div>
+                    <StatusBadge user={u} />
+                  </div>
+                  <RoleControl user={u} />
+                  <Actions user={u} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-2 text-sm">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+          <span>Page {page} of {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+      )}
+
+      <AlertDialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmText?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium text-gray-900">{confirm?.user?.name || confirm?.user?.email}</span>
+              {" — "}
+              {confirmText?.body}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={runConfirmed}
+              className={confirm?.type === "delete" || (confirm?.type === "block" && !confirm.user.isBlocked) ? "bg-red-600 hover:bg-red-700" : ""}
             >
-              Confirm Change
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {confirmText?.action}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

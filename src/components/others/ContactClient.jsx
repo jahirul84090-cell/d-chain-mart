@@ -37,13 +37,14 @@ export default function ContactClient() {
     () => ({
       brand: "D Chin Mart",
       tagline: "Online Shopping & EMI Marketplace in Bangladesh",
-      addressLine1: "Mohonpur,Ramsagor,Dinajpur",
+      addressLine1: "Mohonpur, Ramsagar, Dinajpur, Bangladesh",
       addressLine2: "Customer Support: 10:00 AM – 10:00 PM",
       phoneDisplay: "01923363194",
       phoneRaw: "01923363194",
       email: "dchinmart@gmail.com",
-      whatsappRaw: "+8801923363194",
+      whatsappRaw: "8801923363194", // digits only for wa.me links
       facebookUrl: "https://www.facebook.com/profile.php?id=61561556205308",
+      mapLink: "https://maps.google.com/?q=D+Chin+Mart+Dinajpur",
       mapEmbedUrl:
         "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d449.9511441598357!2d88.61325374339755!3d25.551392961410816!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39fb4f00436dab21%3A0x8406adda3a8d896b!2sD%20Chin%20Mart!5e0!3m2!1sen!2sbd!4v1779440147909!5m2!1sen!2sbd",
     }),
@@ -51,6 +52,8 @@ export default function ContactClient() {
   );
 
   const [loading, setLoading] = useState(false);
+  // Spam trap: hidden from people, filled in by bots.
+  const [honeypot, setHoneypot] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -91,20 +94,17 @@ export default function ContactClient() {
     try {
       setLoading(true);
 
-      // Replace with your real API route later:
-      // const res = await fetch("/api/contact", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(form),
-      // });
-      //
-      // if (!res.ok) {
-      //   throw new Error("Failed to send message");
-      // }
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, website: honeypot }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send message");
+      }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      toast.success("Thanks! Your message has been sent successfully.");
+      toast.success("Thanks! Your message has been sent. We'll reply within 24 hours.");
 
       setForm({
         name: "",
@@ -114,7 +114,7 @@ export default function ContactClient() {
         message: "",
       });
     } catch (error) {
-      toast.error("Failed to send message. Please try again.");
+      toast.error(error.message || "Failed to send message. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -314,10 +314,20 @@ export default function ContactClient() {
               </CardContent>
             </Card>
 
-            <Card className="overflow-hidden border-0 shadow-sm">
+            <Card id="find-us" className="scroll-mt-24 overflow-hidden border-0 shadow-sm">
               <CardHeader className="bg-white">
                 <CardTitle className="text-xl">Find Us</CardTitle>
-                <CardDescription>Location preview on Google Maps.</CardDescription>
+                <CardDescription>
+                  {CONTACT.addressLine1} ·{" "}
+                  <a
+                    href={CONTACT.mapLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Open in Google Maps
+                  </a>
+                </CardDescription>
               </CardHeader>
 
               <CardContent className="p-0">
@@ -351,6 +361,18 @@ export default function ContactClient() {
 
               <CardContent>
                 <form onSubmit={onSubmit} className="space-y-5">
+                  <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                    <label>
+                      Website
+                      <input
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={honeypot}
+                        onChange={(e) => setHoneypot(e.target.value)}
+                      />
+                    </label>
+                  </div>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name *</Label>

@@ -165,7 +165,7 @@ export default function UserLoansPage() {
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </Button>
               <Button asChild size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-                <Link href="/products"><Plus className="h-3.5 w-3.5" />New Loan</Link>
+                <Link href="/allproducts"><Plus className="h-3.5 w-3.5" />New Loan</Link>
               </Button>
             </div>
           </div>
@@ -237,7 +237,7 @@ export default function UserLoansPage() {
             <p className="text-base font-bold text-slate-700 dark:text-slate-300">No Loan Applications Yet</p>
             <p className="mt-1.5 text-sm text-slate-400">Browse products and apply for an EMI loan to get started.</p>
             <Button asChild className="mt-6 gap-2 bg-blue-600 hover:bg-blue-700">
-              <Link href="/products"><Plus className="h-4 w-4" />Browse Products</Link>
+              <Link href="/allproducts"><Plus className="h-4 w-4" />Browse Products</Link>
             </Button>
           </div>
         ) : filtered.length === 0 ? (

@@ -8,6 +8,8 @@ import {
   Menu,
   ChevronDown,
   MapPin,
+  PackageSearch,
+  HelpCircle,
   Tag,
   Home,
   X,
@@ -93,9 +95,10 @@ const coreMenuLinks = [
 ];
 
 const extendedLinks = [
-  { name: "OFFERS", icon: Tag, href: "/offers" },
-  { name: "OUR LOCATION", icon: MapPin, href: "/location" },
-  { name: "VISIT OUR SHOWROOM", icon: MapPin, href: "/showroom" },
+  { name: "Best deals", icon: Tag, href: "/allproducts?sort=deals" },
+  { name: "Track my order", icon: PackageSearch, href: "/track-order" },
+  { name: "Visit our store", icon: MapPin, href: "/contact#find-us" },
+  { name: "Help & FAQ", icon: HelpCircle, href: "/faq" },
 ];
 
 const toMenuCategories = (items = []) =>

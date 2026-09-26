@@ -8,6 +8,13 @@ import { createCustomerOrderEmail } from "@/lib/template/createCustomerOrderEmai
 import { createAdminOrderEmail } from "@/lib/template/createAdminOrderEmail";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 import { resolveDeliveryFee } from "@/lib/delivery-fee";
+import { isValidBdPhone } from "@/lib/address";
+import {
+  ORDER_STATUSES,
+  StockConflictError,
+  applyStatusStockChange,
+  restockOrder,
+} from "@/lib/order-status";
 
 export async function GET(request) {
   const authCheck = await requireAuthenticatedUser(request);
@@ -105,88 +112,86 @@ export async function GET(request) {
 }
 
 async function handlePATCH(request) {
+  const authCheck = await requireAuthenticatedUser(request);
+  if (authCheck) return authCheck;
+
   try {
-    const authCheck = await requireAuthenticatedUser(request);
-
-    if (authCheck) return authCheck;
-    const data = await request.json();
-
-    const { id, status, isPaid } = data;
-
-    if (!id || !status || isPaid === undefined) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    const { id, status, isPaid } = await request.json();
+    if (!id || (!status && isPaid === undefined)) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    if (status && !ORDER_STATUSES.includes(status)) {
+      return NextResponse.json({ error: "Invalid status value" }, { status: 400 });
     }
 
-    if (
-      !["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].includes(
-        status
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Invalid status value" },
-        { status: 400 }
-      );
-    }
-
-    const order = await prisma.order.update({
+    const existing = await prisma.order.findUnique({
       where: { id },
-      data: {
-        status,
-        isPaid,
-        updatedAt: new Date(),
-      },
-      include: {
-        user: { select: { email: true } },
-        shippingAddress: {
-          select: { street: true, city: true, state: true, zip: true },
+      include: { items: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const order = await prisma.$transaction(async (tx) => {
+      await applyStatusStockChange(tx, existing, status);
+      return tx.order.update({
+        where: { id },
+        data: {
+          ...(status ? { status } : {}),
+          ...(isPaid !== undefined ? { isPaid: !!isPaid } : {}),
         },
-        paymentMethod: { select: { name: true } },
-        items: {
-          select: {
-            id: true,
-            quantity: true,
-            pricePaid: true,
-            productSnapshot: true,
+        include: {
+          user: { select: { email: true } },
+          shippingAddress: true,
+          paymentMethod: { select: { name: true } },
+          items: {
+            select: { id: true, quantity: true, pricePaid: true, productSnapshot: true },
           },
         },
-      },
+      });
     });
 
     return NextResponse.json(order, { status: 200 });
   } catch (error) {
+    if (error instanceof StockConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     console.error("Error updating order:", error);
-    return NextResponse.json(
-      { error: "Failed to update order" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
   }
 }
 
 async function handleDELETE(request) {
-  try {
-    const authCheck = await requireAuthenticatedUser(request);
+  const authCheck = await requireAuthenticatedUser(request);
+  if (authCheck) return authCheck;
 
-    if (authCheck) return authCheck;
+  try {
     const { id } = await request.json();
     if (!id) {
       return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
     }
 
-    await prisma.$transaction([
-      prisma.orderItem.deleteMany({ where: { orderId: id } }),
-      prisma.order.delete({ where: { id } }),
-    ]);
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // An active order still holds stock; give it back before deleting.
+      if (existing.status !== "CANCELLED") await restockOrder(tx, existing.items);
+      await tx.invoice.deleteMany({ where: { orderId: id } });
+      await tx.loanApplication.updateMany({ where: { orderId: id }, data: { orderId: null } });
+      await tx.orderItem.deleteMany({ where: { orderId: id } });
+      await tx.order.delete({ where: { id } });
+    });
 
     return NextResponse.json({ message: "Order deleted" }, { status: 200 });
   } catch (error) {
     console.error("Error deleting order:", error);
-    return NextResponse.json(
-      { error: "Failed to delete order" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete order" }, { status: 500 });
   }
 }
 
@@ -218,6 +223,12 @@ async function handlePOST(request) {
     });
     if (!address) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+    }
+    if (!isValidBdPhone(address.phoneNumber)) {
+      return NextResponse.json(
+        { error: "Please add a valid mobile number to your delivery address so the courier can reach you." },
+        { status: 400 }
+      );
     }
 
     const [cart, paymentMethod, deliveryFees] = await Promise.all([

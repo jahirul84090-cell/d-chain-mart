@@ -2,21 +2,19 @@
 
 import * as React from "react";
 import {
-  Check,
-  Clipboard,
-  CopyMinusIcon,
-  DollarSign,
+  Boxes,
+  ClipboardList,
+  FilePlus2,
   Image,
-  IterationCcw,
   Landmark,
   LayoutDashboard,
-  ListOrdered,
+  Mail,
   ShoppingBasket,
+  Star,
+  Truck,
   Users,
   Wallet,
-  Wallet2Icon,
 } from "lucide-react";
-
 import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
 import {
@@ -29,93 +27,32 @@ import {
 import { NavMain } from "./nav-main";
 import { useSession } from "next-auth/react";
 
-// This is sample data.
+// Admin navigation. `title` is also used for page breadcrumbs.
 export const data = {
   navMain: [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Orders", url: "/dashboard/order/manage", icon: ClipboardList },
+    { title: "Manual Order", url: "/dashboard/invoice", icon: FilePlus2 },
     {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-      isActive: true,
-    },
-    {
-      title: "Users",
-      url: "/dashboard/users",
-      icon: Users,
-      isActive: true,
-    },
-    {
-      title: "Media",
-      url: "/dashboard/media",
-      icon: Image,
-      isActive: true,
-    },
-
-    {
-      title: "Product",
+      title: "Products",
       url: "#",
       icon: ShoppingBasket,
-      isActive: false,
       items: [
-        {
-          title: "Manage Category",
-          url: "/dashboard/product/category",
-        },
-        {
-          title: "Add Product",
-          url: "/dashboard/product/add",
-        },
-        {
-          title: "Manage Product",
-          url: "/dashboard/product/manage",
-        },
+        { title: "All Products", url: "/dashboard/product/manage" },
+        { title: "Add Product", url: "/dashboard/product/add" },
+        { title: "Categories", url: "/dashboard/product/category" },
       ],
     },
-    {
-      title: "Orders",
-      url: "/dashboard/order/manage",
-      icon: Clipboard,
-      isActive: true,
-    },
-    {
-      title: "Payment Methods",
-      url: "/dashboard/payment-method",
-      icon: Landmark,
-      isActive: true,
-    },
-    {
-      title: "Product Reviews",
-      url: "/dashboard/reviews",
-      icon: Check,
-      isActive: true,
-    },
-    {
-      title: "Delivery Fees",
-      url: "/dashboard/delivery-fees",
-      icon: DollarSign,
-      isActive: true,
-    },
-    {
-      title: "Loans",
-      url: "/dashboard/loans",
-      icon: Wallet,
-      isActive: true,
-    },
-      {
-      title: "Accounting",
-      url: "/dashboard/inventory",
-      icon: Wallet2Icon,
-      isActive: true,
-    },
-    {
-      title: "Invoice",
-      url: "/dashboard/invoice",
-      icon: CopyMinusIcon,
-      isActive: true,
-    },
+    { title: "Reviews", url: "/dashboard/reviews", icon: Star },
+    { title: "Customers", url: "/dashboard/users", icon: Users, superAdminOnly: true },
+    { title: "Messages", url: "/dashboard/messages", icon: Mail },
+    { title: "EMI & Loans", url: "/dashboard/loans", icon: Wallet },
+    { title: "Inventory", url: "/dashboard/inventory", icon: Boxes },
+    { title: "Payment Methods", url: "/dashboard/payment-method", icon: Landmark },
+    { title: "Delivery Fees", url: "/dashboard/delivery-fees", icon: Truck },
+    { title: "Media Library", url: "/dashboard/media", icon: Image },
   ],
 };
-
 export function AppSidebar({ ...props }) {
   const { data: userdata } = useSession();
 

@@ -229,6 +229,9 @@ export async function GET(request) {
     case "oldest":
       orderBy.createdAt = "asc";
       break;
+    case "deals":
+      orderBy.discount = "desc";
+      break;
     case "newest":
     default:
       orderBy.createdAt = "desc";

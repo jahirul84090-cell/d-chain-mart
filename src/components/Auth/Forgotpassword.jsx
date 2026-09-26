@@ -142,7 +142,7 @@ export default function ForgotPasswordPage() {
             </p>
             <p>
               Don't have an account?{" "}
-              <a href="/auth/sign-up" className="text-blue-500 hover:underline">
+              <a href="/auth/signup" className="text-blue-500 hover:underline">
                 Sign up
               </a>
             </p>

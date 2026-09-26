@@ -6,6 +6,8 @@ export const RESERVED_SLUGS = new Set([
   "contact", "dashboard", "details", "loans", "orders", "payment", "profile",
   "wishlist", "search", "login", "signup", "admin", "sitemap.xml",
   "robots.txt", "manifest.webmanifest", "_next", "favicon.ico",
+  "faq", "privacy-policy", "terms-and-conditions", "return-policy",
+  "shipping-policy", "emi-policy", "track-order",
 ]);
 
 export function slugify(value) {
