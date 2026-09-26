@@ -8,6 +8,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { formatBDT } from "@/lib/format";
 
 // Animation variants for the text content
 const contentVariants = {
@@ -132,19 +133,20 @@ export default function HeroSection({ sliderProducts }) {
               >
                 <div className="max-w-3xl text-white space-y-7 z-10">
                   {/* Title */}
-                  <motion.h1
-                    className="text-5xl lg:text-7xl font-extrabold leading-tight tracking-tight drop-shadow-lg"
+                  {/* h2: the page already has one h1 */}
+                  <motion.h2
+                    className="text-4xl sm:text-5xl lg:text-7xl font-extrabold leading-tight tracking-tight drop-shadow-lg"
                     variants={itemVariants}
                   >
                     {slide.name}
-                  </motion.h1>
+                  </motion.h2>
 
                   {/* Description */}
                   <motion.p
-                    className="text-xl md:text-2xl text-gray-100 font-light drop-shadow"
+                    className="line-clamp-2 text-lg md:text-2xl text-gray-100 font-light drop-shadow"
                     variants={itemVariants}
                   >
-                    {slide.shortDescription}
+                    {slide.shortdescription}
                   </motion.p>
 
                   {/* Button and Price */}
@@ -160,12 +162,12 @@ export default function HeroSection({ sliderProducts }) {
 
                     {/* Price styling refined for emphasis */}
                     <div className="flex items-center text-white font-sans">
-                      <span className="text-4xl font-extrabold">
-                        ৳{slide.price}
+                      <span className="text-3xl sm:text-4xl font-extrabold">
+                        {formatBDT(slide.price)}
                       </span>
-                      {slide.oldPrice && (
-                        <span className="line-through text-gray-400 text-xl ml-4 opacity-80">
-                          ৳{slide.oldPrice}
+                      {slide.oldPrice > slide.price && (
+                        <span className="line-through text-gray-300 text-xl ml-4">
+                          {formatBDT(slide.oldPrice)}
                         </span>
                       )}
                     </div>
@@ -182,14 +184,14 @@ export default function HeroSection({ sliderProducts }) {
         <Button
           onClick={scrollPrev}
           className="p-3 md:p-4 rounded-full bg-black/40 backdrop-blur-sm text-white hover:bg-black/60 transition-colors duration-300 shadow-xl opacity-75 hover:opacity-100"
-          aria-label="Previous Slide"
+          aria-label="Previous slide"
         >
           <ChevronLeft className="h-6 w-6 md:h-8 md:w-8" />
         </Button>
         <Button
           onClick={scrollNext}
           className="p-3 md:p-4 rounded-full bg-black/40 backdrop-blur-sm text-white hover:bg-black/60 transition-colors duration-300 shadow-xl opacity-75 hover:opacity-100"
-          aria-label="Next Slide"
+          aria-label="Next slide"
         >
           <ChevronRight className="h-6 w-6 md:h-8 md:w-8" />
         </Button>

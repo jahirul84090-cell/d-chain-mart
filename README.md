@@ -32,7 +32,7 @@ npm run dev
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google sign-in |
 | `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_URL_ENDPOINT` | Image uploads. Loan documents are stored as **private** files and served through signed URLs |
 | `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `SMTPEMAIL`, `SMTPASSWORD`, `EMAIL_FROM` | SMTP for OTP, order and invoice emails |
-| `ADMIN_EMAIL` | Receives new-order notifications |
+| `ADMIN_EMAIL` | Receives new-order and contact-form notifications |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_SUPPORT_PHONE`, `NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY` | Contact details shown on the site |
 
 ## Production
@@ -47,12 +47,18 @@ from the database at build time.
 
 ### Deploying this release
 
-This release adds two migrations: `20260926000000_security_and_indexes`
-(an `otpAttempts` column, a non-unique `otpCode`, product listing indexes)
-and `20260926100000_order_item_variants` (an order may contain the same
-product in several sizes/colours). `npm run build` applies them through
-`prisma db push`; if you deploy
-with migrations instead, run `npx prisma migrate deploy` before starting.
+This release adds three migrations:
+
+- `20260926000000_security_and_indexes`: an `otpAttempts` column, a
+  non-unique `otpCode`, product listing indexes.
+- `20260926100000_order_item_variants`: an order may contain the same
+  product in several sizes/colours.
+- `20260926200000_contact_messages_and_fixes`: a `ContactMessage` table
+  (contact form submissions, shown under Dashboard → Messages), a
+  `User.phoneNumber` column, and corrected invoice PDF links.
+
+`npm run build` applies them through `prisma db push`; if you deploy with
+migrations instead, run `npx prisma migrate deploy` before starting.
 
 After deploying:
 
@@ -61,11 +67,16 @@ After deploying:
 3. Loan documents uploaded before this release remain public in ImageKit.
    Mark them private in the ImageKit dashboard (folder `/loans`). The app
    already serves them through signed URLs.
+4. Review the policy pages (privacy, terms, returns, shipping, EMI, FAQ).
+   Their text lives in `src/lib/policies.js` and is a starting point, not
+   legal advice. Update `POLICY_UPDATED` when you change it.
 
 ## Security notes
 
-- Every `/api/admin/*` write and every admin read requires a `SUPER_ADMIN`
-  session (`requireAuthenticatedUser` in `src/lib/authCheck.js`).
+- Staff roles are `ADMIN` and `SUPER_ADMIN`. Both can use the dashboard;
+  only `SUPER_ADMIN` can manage customers (roles, blocking, deleting).
+  See `requireAuthenticatedUser` in `src/lib/authCheck.js`.
+- Blocked accounts are signed out on their next request and cannot sign in.
 - Customers can only read their own orders, invoices and loans.
 - OTP codes are random, expire after 10 minutes, lock after 5 wrong
   attempts, and can be re-sent at most once a minute.

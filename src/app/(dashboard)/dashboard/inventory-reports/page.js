@@ -249,7 +249,7 @@ export default function ReportsPage() {
                             </div>
                             <div className="h-6 flex-1 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800 sm:h-7">
                               <div
-                                className="flex h-full items-center rounded-lg bg-gradient-to-r from-violet-500 to-indigo-500 px-2 transition-all duration-500"
+                                className="flex h-full items-center rounded-lg bg-gradient-to-r from-violet-500 to-sky-600 px-2 transition-all duration-500"
                                 style={{ width: `${Math.max(4, (month.profit / maxProfit) * 100)}%` }}
                               >
                                 {month.profit > maxProfit * 0.2 && (

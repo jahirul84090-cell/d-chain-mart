@@ -192,8 +192,8 @@ export default function PaymentMethodManager() {
   return (
     <div className="container mx-auto p-6 max-w-7xl min-h-screen">
       <Card className="shadow-2xl border-none rounded-2xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-600 p-6">
-          <CardTitle className="text-2xl font-bold text-white tracking-tight">
+        <CardHeader className="border-b bg-white p-6">
+          <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             Payment Method Manager
           </CardTitle>
         </CardHeader>
@@ -209,7 +209,7 @@ export default function PaymentMethodManager() {
               onChange={(e) =>
                 setCurrentMethod({ ...currentMethod, name: e.target.value })
               }
-              className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+              className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
               disabled={loading}
               aria-label="Payment method name"
             />
@@ -223,7 +223,7 @@ export default function PaymentMethodManager() {
                   accountNumber: e.target.value,
                 })
               }
-              className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+              className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
               disabled={loading}
               aria-label="Account number"
             />
@@ -236,7 +236,7 @@ export default function PaymentMethodManager() {
                   instructions: e.target.value,
                 })
               }
-              className="col-span-1 md:col-span-2 border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+              className="col-span-1 md:col-span-2 border-gray-300 focus:ring-primary rounded-lg shadow-sm"
               disabled={loading}
               aria-label="Payment instructions"
             />

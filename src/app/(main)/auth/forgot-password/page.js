@@ -1,12 +1,7 @@
 import ForgotPasswordPage from "@/components/Auth/Forgotpassword";
-import React from "react";
 
-const page = () => {
-  return (
-    <>
-      <ForgotPasswordPage />
-    </>
-  );
-};
+export const metadata = { title: "Forgot password" };
 
-export default page;
+export default function Page() {
+  return <ForgotPasswordPage />;
+}

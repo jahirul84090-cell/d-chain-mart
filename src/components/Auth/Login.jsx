@@ -1,290 +1,135 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Loader2, Mail, LockKeyhole, LogIn } from "lucide-react";
 import { toast } from "react-toastify";
-import Link from "next/link";
-import Image from "next/image";
+import AuthCard from "./AuthCard";
+import {
+  AuthField,
+  Divider,
+  EMAIL_RE,
+  FormAlert,
+  GoogleButton,
+  PasswordField,
+  SubmitButton,
+  safeCallbackUrl,
+} from "./AuthFormParts";
 
-// Only allow same-site relative paths, so the login page cannot be used to
-// redirect users to another website.
-function safeCallbackUrl(value) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
-
-// Logo component (placed at the top of the centered card)
-const Logo = () => (
-  <Link href="/" className="flex items-center justify-center gap-3 pb-4">
-   
-
-    <div className="text-left">
-      <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-        D Chin Mart
-      </h1>
-
-      <p className="text-xs font-medium text-primary">
-        Online Shopping & EMI Marketplace
-      </p>
-    </div>
-  </Link>
-);
+// Notices shown after arriving from another auth step.
+const NOTICES = {
+  verified: "Your email is verified. Sign in to continue.",
+  reset: "Your password has been changed. Sign in with your new password.",
+};
 
 export default function SignInPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
+  const notice = NOTICES[searchParams.get("status")];
 
-  const handleCredentialsSubmit = async (e) => {
+  const [email, setEmail] = useState(searchParams.get("email") || "");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
-    setIsCredentialsLoading(true);
-
-    if (!email || !password) {
-      setError("Email and password are required.");
-      setIsCredentialsLoading(false);
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("Please enter a valid email address.");
       return;
     }
-
+    setLoading(true);
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-      });
-
+      const result = await signIn("credentials", { redirect: false, email: email.trim(), password });
       if (result?.error) {
-        setError(result.error);
-        setIsCredentialsLoading(false);
+        setError(result.error === "CredentialsSignin" ? "Incorrect email or password." : result.error);
+        setLoading(false);
         return;
       }
-      toast.success("Login Successful!");
-      const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
-      router.push(callbackUrl);
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-      setIsCredentialsLoading(false);
+      toast.success("Welcome back!");
+      router.replace(callbackUrl);
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const google = () => {
     setError("");
-    setIsGoogleLoading(true);
-    try {
-      const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
-      await signIn("google", { callbackUrl: callbackUrl });
-    } catch (err) {
-      console.error(err);
-      setError("Failed to initiate Google sign-in. Please try again.");
-      setIsGoogleLoading(false);
-    }
+    setGoogleLoading(true);
+    signIn("google", { callbackUrl }).catch(() => {
+      setError("Couldn't start Google sign-in. Please try again.");
+      setGoogleLoading(false);
+    });
   };
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      // Clear error after showing toast to prevent re-toasting on re-renders
-      setError("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [error]);
-
-  // Removed primaryColorClass variable as we are now using the utility classes directly
+  const needsVerification = error.startsWith("Email not verified");
+  const signupHref = callbackUrl !== "/" ? `/auth/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/auth/signup";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-12">
-      <Card className="w-full max-w-md shadow-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 rounded-xl transition-shadow duration-300">
-        <CardHeader className="text-center space-y-2 p-8">
-          <Logo />
-          <CardTitle className="text-3xl font-bold text-gray-900 dark:text-white">
-            Sign In to Your Account
-          </CardTitle>
-          <CardDescription className="text-gray-500 dark:text-gray-400">
-            Enter your credentials to continue to the dashboard.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-6 p-8 pt-0">
-          <form onSubmit={handleCredentialsSubmit} className="space-y-6">
-            {/* Email Input */}
-            <div className="space-y-2">
-              <Label
-                htmlFor="email"
-                className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-2"
-              >
-                <Mail className="h-4 w-4 text-gray-400" />
-                Email Address
-              </Label>
-              <div className="relative">
-                {/* Icon inside the input for better visual grouping */}
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g., jane.doe@corporate.com"
-                  // Using focus:ring-primary and focus:border-primary
-                  className="border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-primary focus:border-primary rounded-lg shadow-inner pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password Input */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label
-                  htmlFor="password"
-                  className="text-gray-700 dark:text-gray-300 font-medium flex items-center gap-2"
-                >
-                  <LockKeyhole className="h-4 w-4 text-gray-400" />
-                  Password
-                </Label>
-                <Link
-                  href="/auth/reset-password"
-                  className="text-sm font-medium text-primary hover:underline" // Changed to text-primary
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-              <div className="relative">
-                <LockKeyhole className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  // Using focus:ring-primary and focus:border-primary
-                  className="border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-primary focus:border-primary rounded-lg shadow-inner pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Error Display (optional, but good for immediate feedback) */}
-            {error && !error.includes("Login Successful") && (
-              <p className="text-red-500 text-sm text-center">
-                {error}
-                {error.includes("Email not verified") && (
-                  <>
-                    {" "}
-                    <Link
-                      href={`/auth/otpverify?email=${encodeURIComponent(
-                        email
-                      )}`}
-                      className="text-primary hover:underline font-semibold" // Changed to text-primary
-                    >
-                      Verify your email now
-                    </Link>
-                  </>
-                )}
-              </p>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              // Using bg-primary and hover:bg-primary/90 for button styling
-              className="w-full bg-primary text-primary-foreground font-semibold py-2 rounded-lg hover:bg-primary/90 transition-colors duration-200 shadow-md flex justify-center items-center gap-2"
-              disabled={isCredentialsLoading || isGoogleLoading}
-            >
-              {isCredentialsLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  <LogIn className="h-4 w-4" />
-                  Sign In
-                </>
-              )}
-            </Button>
-          </form>
-
-          {/* OR Separator */}
-          <div className="relative flex items-center text-gray-400 my-4">
-            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-            <span className="flex-shrink mx-4 text-sm text-gray-500 dark:text-gray-400 font-medium">
-              OR
-            </span>
-            <div className="flex-grow border-t border-gray-200 dark:border-gray-700"></div>
-          </div>
-
-          {/* Google Sign-in Button */}
-          <Button
-            variant="outline"
-            className="w-full border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-3 rounded-lg transition-colors duration-200 shadow-sm"
-            onClick={handleGoogleSignIn}
-            disabled={isCredentialsLoading || isGoogleLoading}
-          >
-            {isGoogleLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Redirecting...
-              </>
-            ) : (
-              <>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1.02.68-2.31 1.08-3.71 1.08-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C4.01 20.67 7.67 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.67 1 4.01 3.33 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
-                </svg>
-                Sign in with Google
-              </>
-            )}
-          </Button>
-
-          {/* Sign Up Link */}
-          <div className="text-center text-gray-500 text-sm mt-8">
-            <p>
-              New to Application?{" "}
-              <Link
-                href="/auth/signup"
-                className="font-semibold text-primary hover:underline transition-colors duration-200" // Changed to text-primary
-              >
-                Create an account
+    <AuthCard
+      title="Sign in"
+      subtitle="Welcome back. Sign in to track orders, manage your wishlist and EMI plans."
+      footer={
+        <>
+          New to D Chin Mart?{" "}
+          <Link href={signupHref} className="font-semibold text-primary hover:underline">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        {notice && !error && <FormAlert type="success">{notice}</FormAlert>}
+        <FormAlert>
+          {needsVerification ? (
+            <>
+              Your email isn&apos;t verified yet.{" "}
+              <Link href={`/auth/otpverify?email=${encodeURIComponent(email.trim())}`} className="font-semibold underline">
+                Verify it now
               </Link>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </>
+          ) : (
+            error
+          )}
+        </FormAlert>
+
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <PasswordField
+          id="password"
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          action={
+            <Link href="/auth/forgot-password" className="text-sm font-medium text-primary hover:underline">
+              Forgot password?
+            </Link>
+          }
+        />
+        <SubmitButton loading={loading} loadingText="Signing in…" disabled={googleLoading || !email || !password}>
+          Sign in
+        </SubmitButton>
+      </form>
+
+      <Divider />
+      <GoogleButton loading={googleLoading} disabled={loading} onClick={google} />
+    </AuthCard>
   );
 }

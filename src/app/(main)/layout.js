@@ -1,5 +1,6 @@
 import ClickToTop from "@/components/others/ClickTop";
 import Footer from "@/components/others/Footer";
+import HideOnRoutes from "@/components/others/HideOnRoutes";
 import EcommerceHeader from "@/components/others/Header";
 import { getCategories, safely } from "@/lib/storefront";
 import { toJsonLd } from "@/lib/jsonld";
@@ -118,7 +119,10 @@ export default async function MainLayout({ children }) {
         {children}
       </main>
 
-      <Footer />
+      {/* A focused checkout: no footer links to leave the purchase. */}
+      <HideOnRoutes routes={["/checkout"]}>
+        <Footer />
+      </HideOnRoutes>
     </>
   );
 }

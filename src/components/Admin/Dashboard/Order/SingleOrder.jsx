@@ -32,6 +32,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { orderNumber } from "@/lib/format";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -75,7 +76,7 @@ function PageSpinner({ message }) {
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl px-12 py-10 flex flex-col items-center gap-4 border border-slate-100">
         <div className="relative w-14 h-14">
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-indigo-600 animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-4 h-4 rounded-full bg-indigo-200 animate-pulse" />
           </div>
@@ -160,7 +161,7 @@ function ActionBtn({
 }) {
   const vs = {
     primary:
-      "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100",
+      "bg-primary hover:bg-primary/90 text-white shadow-lg shadow-indigo-100",
     emerald:
       "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100",
   };
@@ -357,7 +358,7 @@ export default function AdminOrderDetailsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4">
         <div className="relative w-12 h-12">
-          <div className="absolute inset-0 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-indigo-600 animate-spin" />
         </div>
         <p className="text-sm text-slate-500 font-medium">
           Loading order details…
@@ -400,16 +401,16 @@ export default function AdminOrderDetailsPage() {
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => router.push("/dashboard/order/manage")}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-primary transition-colors shrink-0"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Orders
               </button>
               <span className="text-slate-200">/</span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">
-                  Order Details
-                </p>
+                <h1 className="text-sm font-bold text-slate-900 truncate">
+                  Order {orderNumber(order.id)}
+                </h1>
                 <p className="text-[10px] text-slate-400 font-mono leading-none mt-0.5 truncate">
                   {order.id}
                 </p>
@@ -430,7 +431,7 @@ export default function AdminOrderDetailsPage() {
                 {order.isPaid ? "Paid" : "Unpaid"}
               </span>
               {hasInvoice && (
-                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset bg-indigo-50 text-indigo-700 ring-indigo-200">
+                <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset bg-primary/5 text-primary ring-primary/30">
                   <ReceiptText className="h-3 w-3" />#
                   {order.invoice.invoiceNumber}
                 </span>
@@ -475,7 +476,7 @@ export default function AdminOrderDetailsPage() {
                   <Field
                     label="Grand Total"
                     value={`৳${order.orderTotal.toLocaleString("en-BD")}`}
-                    highlight="text-indigo-600 font-bold text-base"
+                    highlight="text-primary font-bold text-base"
                   />
                   <Field
                     label="Transaction No."
@@ -551,7 +552,7 @@ export default function AdminOrderDetailsPage() {
                       key={item.id}
                       className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 hover:bg-white hover:shadow-sm transition-all duration-150"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 font-bold text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-center text-indigo-500 font-bold text-xs shrink-0">
                         {i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -598,11 +599,11 @@ export default function AdminOrderDetailsPage() {
                   ))}
 
                   {/* Total footer */}
-                  <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-indigo-50 border border-indigo-100 mt-1">
-                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                  <div className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-primary/5 border border-primary/20 mt-1">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider">
                       Grand Total
                     </span>
-                    <span className="text-base font-bold text-indigo-700">
+                    <span className="text-base font-bold text-primary">
                       ৳{order.orderTotal.toLocaleString("en-BD")}
                     </span>
                   </div>
@@ -647,7 +648,7 @@ export default function AdminOrderDetailsPage() {
               {/* Customer */}
               <Card icon={User2} title="Customer" accent="indigo">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                     {(order.user.name || order.user.email)[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -760,7 +761,7 @@ export default function AdminOrderDetailsPage() {
 
               {/* Invoice number chip */}
               {hasInvoice && (
-                <div className="sm:flex-none inline-flex items-center gap-2 px-4 py-3.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold">
+                <div className="sm:flex-none inline-flex items-center gap-2 px-4 py-3.5 rounded-xl bg-primary/5 border border-primary/20 text-primary text-xs font-bold">
                   <FileText className="h-3.5 w-3.5 shrink-0" />#
                   {order.invoice.invoiceNumber}
                 </div>
@@ -778,7 +779,7 @@ export default function AdminOrderDetailsPage() {
               </div>
             )}
             {confirming && (
-              <div className="mt-3 flex items-center gap-2.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5">
+              <div className="mt-3 flex items-center gap-2.5 text-xs text-primary bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                 <span className="font-semibold">{spinnerMsg}</span>
               </div>

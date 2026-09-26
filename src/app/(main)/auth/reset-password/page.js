@@ -1,16 +1,7 @@
 import Resetpassword from "@/components/Auth/Resetpassword";
-import React from "react";
 
-export const metadata = {
-  title: "Reset Your Password",
-};
+export const metadata = { title: "Reset your password" };
 
-const page = () => {
-  return (
-    <>
-      <Resetpassword />
-    </>
-  );
-};
-
-export default page;
+export default function Page() {
+  return <Resetpassword />;
+}

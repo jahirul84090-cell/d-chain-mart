@@ -158,15 +158,13 @@ export default function ProductManagement() {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-8 max-w-7xl bg-gray-100 min-h-screen font-sans text-gray-800">
+    <div className="p-4 md:p-6 text-gray-800">
       <Card className="shadow-lg border border-gray-200 rounded-2xl overflow-hidden bg-white">
         <CardHeader className="bg-white p-6 md:p-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <CardTitle className="text-2xl sm:text-3xl font-bold tracking-wide text-gray-900">
-              Product Management 📦
-            </CardTitle>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Products</h1>
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md"
+              className="bg-primary hover:bg-primary/90 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm"
               onClick={() => router.push("/dashboard/product/add")}
             >
               <Plus className="h-5 w-5 mr-2" /> Add New Product
@@ -180,7 +178,7 @@ export default function ProductManagement() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search products by name..."
-                className="pl-12 pr-4 py-3 md:py-4 border border-gray-300 focus:ring-2 focus:ring-indigo-500 rounded-xl bg-white text-gray-800 font-medium shadow-sm transition-all duration-300 w-full"
+                className="pl-12 pr-4 py-3 md:py-4 border border-gray-300 focus:ring-2 focus:ring-primary rounded-xl bg-white text-gray-800 font-medium shadow-sm transition-all duration-300 w-full"
               />
             </div>
             <div className="flex flex-wrap items-center gap-4">
@@ -195,7 +193,7 @@ export default function ProductManagement() {
                   id="isFeatured"
                   checked={isFeatured}
                   onCheckedChange={setIsFeatured}
-                  className="data-[state=checked]:bg-indigo-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -209,7 +207,7 @@ export default function ProductManagement() {
                   id="isPopular"
                   checked={isPopular}
                   onCheckedChange={setIsPopular}
-                  className="data-[state=checked]:bg-indigo-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -223,7 +221,7 @@ export default function ProductManagement() {
                   id="isNewArrival"
                   checked={isNewArrival}
                   onCheckedChange={setIsNewArrival}
-                  className="data-[state=checked]:bg-indigo-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -237,7 +235,7 @@ export default function ProductManagement() {
                   id="isSlider"
                   checked={isSlider}
                   onCheckedChange={setIsSlider}
-                  className="data-[state=checked]:bg-indigo-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               {/* New filter for isActive */}
@@ -252,7 +250,7 @@ export default function ProductManagement() {
                   id="isActive"
                   checked={isActive}
                   onCheckedChange={setIsActive}
-                  className="data-[state=checked]:bg-indigo-600"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -389,7 +387,7 @@ export default function ProductManagement() {
                         <TableCell className="text-gray-600 py-4 max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap">
                           {product.slug}
                         </TableCell>
-                        <TableCell className="text-indigo-600 font-bold py-4">
+                        <TableCell className="text-primary font-bold py-4">
                           ৳{product.price.toLocaleString("en-BD")}
                         </TableCell>
                         {/* New TableCell for Old Price */}
@@ -519,7 +517,7 @@ export default function ProductManagement() {
                     size="sm"
                     onClick={() => paginate(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="border-gray-300 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
+                    className="border-gray-300 bg-white text-primary hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
                   >
                     Previous
                   </Button>
@@ -532,8 +530,8 @@ export default function ProductManagement() {
                         onClick={() => paginate(page)}
                         className={
                           currentPage === page
-                            ? "bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition-all duration-200"
-                            : "border-gray-300 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
+                            ? "bg-primary hover:bg-primary/90 text-white rounded-lg font-medium shadow-sm transition-all duration-200"
+                            : "border-gray-300 bg-white text-primary hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
                         }
                       >
                         {page}
@@ -545,7 +543,7 @@ export default function ProductManagement() {
                     size="sm"
                     onClick={() => paginate(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="border-gray-300 bg-white text-indigo-600 hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
+                    className="border-gray-300 bg-white text-primary hover:bg-gray-100 rounded-lg font-medium shadow-sm transition-all duration-200"
                   >
                     Next
                   </Button>

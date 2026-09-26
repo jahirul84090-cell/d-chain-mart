@@ -152,12 +152,10 @@ const ReviewManager = () => {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto p-4 md:p-8">
+      <div className="p-4 md:p-6">
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-purple-600">
-              Review Manager
-            </CardTitle>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reviews</h1>
             <CardDescription>
               Manage and moderate customer reviews for your products.
             </CardDescription>
@@ -356,7 +354,7 @@ const ReviewManager = () => {
                                 size="sm"
                                 onClick={() => handleApprove(review.id)}
                                 disabled={approvingId !== null}
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                                className="bg-primary hover:bg-primary/90 text-white"
                               >
                                 {approvingId === review.id ? (
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

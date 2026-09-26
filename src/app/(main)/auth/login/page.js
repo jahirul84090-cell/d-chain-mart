@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Login to Your Account",
+  title: "Sign in",
   description:
     "Sign in to your account to manage your profile, view orders, and access your wishlist.",
 };

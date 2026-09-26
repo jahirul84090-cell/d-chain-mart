@@ -23,7 +23,7 @@ const CategoryCard = ({ category }) => {
           className="object-cover rounded-full"
         />
       </div>
-      <h3 className="text-base md:text-lg font-semibold  uppercase mt-1 line-clamp-2 transition-colors duration-200 group-hover:text-primary">
+      <h3 className="text-base md:text-lg font-semibold mt-1 line-clamp-2 transition-colors duration-200 group-hover:text-primary">
         {category.name}
       </h3>
     </Link>

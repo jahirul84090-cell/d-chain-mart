@@ -83,7 +83,7 @@ const INST_META = {
   PARTIAL: { label: "Partial", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300" },
   PAID:    { label: "Paid",    cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300" },
   OVERDUE: { label: "Overdue", cls: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300" },
-  WAIVED:  { label: "Waived",  cls: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300" },
+  WAIVED:  { label: "Waived",  cls: "bg-primary/10 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300" },
 };
 
 // ─── Small components ─────────────────────────────────────────────────────────
@@ -510,7 +510,7 @@ export default function AdminLoansPage() {
         <div className="bg-white dark:bg-[#111318] border-b sticky top-0 z-30">
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-13 sm:h-14 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-sky-600 rounded-lg flex items-center justify-center shrink-0">
                 <CreditCard className="w-3.5 h-3.5 text-white" />
               </div>
               <h1 className="font-bold text-sm sm:text-base">Loan Management</h1>
@@ -1004,7 +1004,7 @@ export default function AdminLoansPage() {
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
                                     inst.status === "PAID"        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300" :
                                     effectiveStatus === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" :
-                                    inst.status === "WAIVED"      ? "bg-purple-100 text-purple-700" :
+                                    inst.status === "WAIVED"      ? "bg-primary/10 text-primary" :
                                     inst.status === "PARTIAL"     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" :
                                     "bg-muted text-muted-foreground"
                                   }`}>
@@ -1054,7 +1054,7 @@ export default function AdminLoansPage() {
                                                 </DropdownMenuItem>
                                               )}
                                               <DropdownMenuSeparator />
-                                              <DropdownMenuItem className="text-purple-600 dark:text-purple-400"
+                                              <DropdownMenuItem className="text-primary dark:text-purple-400"
                                                 onClick={() => openInstAction(inst, "waive")}>
                                                 <BadgeX className="w-3.5 h-3.5 mr-2" />Waive Installment
                                               </DropdownMenuItem>
@@ -1438,7 +1438,7 @@ export default function AdminLoansPage() {
             <DialogHeader>
               <DialogTitle className="text-sm flex items-center gap-2">
                 {instAction === "reschedule"      && <><CalendarDays className="w-4 h-4 text-amber-600"    />Reschedule</>}
-                {instAction === "waive"           && <><BadgeX       className="w-4 h-4 text-purple-600"  />Waive Installment</>}
+                {instAction === "waive"           && <><BadgeX       className="w-4 h-4 text-primary"  />Waive Installment</>}
                 {instAction === "adjust_amount"   && <><Pencil       className="w-4 h-4 text-blue-600"    />Adjust Amount</>}
                 {instAction === "add_late_fee"    && <><AlertTriangle className="w-4 h-4 text-orange-600" />Add Late Fee</>}
                 {instAction === "remove_late_fee" && <><Minus        className="w-4 h-4 text-green-600"   />Remove Late Fee</>}
@@ -1481,7 +1481,7 @@ export default function AdminLoansPage() {
                 </div>
               )}
               {instAction === "waive" && (
-                <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg text-xs text-purple-700 dark:text-purple-300">
+                <div className="p-3 bg-primary/5 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg text-xs text-primary dark:text-purple-300">
                   Marks as <strong>Waived</strong> — no payment required; counts toward completion.
                 </div>
               )}
@@ -1509,7 +1509,7 @@ export default function AdminLoansPage() {
               <Button variant="outline" size="sm" onClick={() => setShowInstAction(false)}>Cancel</Button>
               <Button size="sm" onClick={handleInstAction} disabled={busy}
                 className={
-                  instAction === "waive" ? "bg-purple-600 hover:bg-purple-700 text-white" :
+                  instAction === "waive" ? "bg-primary hover:bg-primary/90 text-white" :
                   instAction === "reset" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""
                 }>
                 {busy && <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />}

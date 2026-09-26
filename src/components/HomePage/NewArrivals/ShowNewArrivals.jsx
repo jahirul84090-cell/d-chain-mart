@@ -54,7 +54,7 @@ export default function ShowNewArrivals({ products, isHeading }) {
                 New Arrivals
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Don’t miss these exclusive deals this week.
+                The latest products added to our store.
               </p>
             </div>
 
@@ -68,8 +68,9 @@ export default function ShowNewArrivals({ products, isHeading }) {
         <Button
           variant="outline"
           size="icon"
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700"
+          className="absolute left-1 top-[35%] z-10 hidden -translate-y-1/2 rounded-full bg-white/90 shadow-md backdrop-blur-sm hover:bg-white sm:inline-flex dark:bg-gray-800/80 dark:hover:bg-gray-700"
           onClick={scrollPrev}
+          aria-label="Previous products"
         >
           <ChevronLeft className="w-5 h-5" />
         </Button>
@@ -81,7 +82,7 @@ export default function ShowNewArrivals({ products, isHeading }) {
               products.map((product) => (
                 <MergedProductCard
                   key={product.id}
-                  tags="NEW"
+                  tags={product.isNewArrival ? "NEW" : undefined}
                   buttonText="ADD TO CART"
                   product={product}
                   isSlider={true}
@@ -99,8 +100,9 @@ export default function ShowNewArrivals({ products, isHeading }) {
         <Button
           variant="outline"
           size="icon"
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-700"
+          className="absolute right-1 top-[35%] z-10 hidden -translate-y-1/2 rounded-full bg-white/90 shadow-md backdrop-blur-sm hover:bg-white sm:inline-flex dark:bg-gray-800/80 dark:hover:bg-gray-700"
           onClick={scrollNext}
+          aria-label="Next products"
           suppressHydrationWarning={true}
         >
           <ChevronRight className="w-5 h-5" />
@@ -113,6 +115,8 @@ export default function ShowNewArrivals({ products, isHeading }) {
               key={index}
               suppressHydrationWarning={true}
               onClick={() => scrollTo(index)}
+              aria-label={`Go to slide ${index + 1}`}
+              aria-current={index === selectedIndex}
               className={`w-3 h-3 rounded-full transition-all ${
                 index === selectedIndex
                   ? "bg-primary scale-110"

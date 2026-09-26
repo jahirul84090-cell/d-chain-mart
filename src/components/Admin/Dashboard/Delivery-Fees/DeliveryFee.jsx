@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { BD_DISTRICTS, COUNTRY } from "@/lib/address";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -39,7 +40,6 @@ export default function AdminDeliveryFeesPage() {
   const router = useRouter();
 
   const [deliveryFees, setDeliveryFees] = useState([]);
-  const [countryFilter, setCountryFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -48,7 +48,7 @@ export default function AdminDeliveryFeesPage() {
   const [formState, setFormState] = useState({
     id: null,
     city: "",
-    country: "",
+    country: COUNTRY,
     amount: "",
   });
   const [formErrors, setFormErrors] = useState({});
@@ -57,16 +57,7 @@ export default function AdminDeliveryFeesPage() {
   const fetchDeliveryFees = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (countryFilter) {
-        params.append("country", countryFilter);
-      }
-      const response = await fetch(
-        `/api/admin/delivery-fees?${params.toString()}`,
-        {
-          credentials: "include",
-        }
-      );
+      const response = await fetch("/api/admin/delivery-fees", { credentials: "include" });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch delivery fees.");
@@ -82,7 +73,8 @@ export default function AdminDeliveryFeesPage() {
 
   useEffect(() => {
     fetchDeliveryFees();
-  }, [countryFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handles changes to form input fields
   const handleFormChange = (e) => {
@@ -93,7 +85,7 @@ export default function AdminDeliveryFeesPage() {
   // Validates the form data before submission
   const validateForm = () => {
     const errors = {};
-    if (!formState.country.trim()) {
+    if (!formState.country?.trim()) {
       errors.country = "Country is required.";
     }
     if (!formState.amount) {
@@ -199,7 +191,7 @@ export default function AdminDeliveryFeesPage() {
 
   // Resets the form to its initial state
   const resetForm = () => {
-    setFormState({ id: null, city: "", country: "", amount: "" });
+    setFormState({ id: null, city: "", country: COUNTRY, amount: "" });
     setFormErrors({});
   };
 
@@ -216,8 +208,8 @@ export default function AdminDeliveryFeesPage() {
   return (
     <div className="container mx-auto p-6 max-w-7xl bg-gray-100 min-h-screen">
       <Card className="shadow-lg border-none rounded-xl overflow-hidden mb-8">
-        <CardHeader className="bg-gray-800 p-6">
-          <CardTitle className="text-2xl font-bold text-white tracking-tight">
+        <CardHeader className="border-b bg-white p-6">
+          <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             {formState.id ? "Edit Delivery Fee" : "Add Delivery Fee"}
           </CardTitle>
         </CardHeader>
@@ -227,34 +219,23 @@ export default function AdminDeliveryFeesPage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             <div className="space-y-2">
-              <Label htmlFor="country" className="font-medium text-gray-700">
-                Country <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="country"
-                value={formState.country}
-                onChange={handleFormChange}
-                placeholder="e.g., Bangladesh"
-                className={formErrors.country ? "border-red-500" : ""}
-                aria-invalid={!!formErrors.country}
-                aria-describedby="country-error"
-              />
-              {formErrors.country && (
-                <p id="country-error" className="text-sm text-red-500">
-                  {formErrors.country}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="city" className="font-medium text-gray-700">
-                City (Optional)
+                District
               </Label>
-              <Input
+              <select
                 id="city"
                 value={formState.city}
                 onChange={handleFormChange}
-                placeholder="e.g., Dhaka"
-              />
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <option value="">All other districts (default fee)</option>
+                {BD_DISTRICTS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">
+                A district fee overrides the default fee for that district.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="amount" className="font-medium text-gray-700">
@@ -307,32 +288,16 @@ export default function AdminDeliveryFeesPage() {
       <hr className="my-8 border-gray-300" />
 
       <Card className="shadow-lg border-none rounded-xl overflow-hidden">
-        <CardHeader className="bg-gray-800 p-6">
-          <CardTitle className="text-2xl font-bold text-white tracking-tight">
+        <CardHeader className="border-b bg-white p-6">
+          <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             Manage Delivery Fees
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 bg-white">
-          <div className="mb-6">
-            <Label
-              htmlFor="countryFilter"
-              className="font-medium text-gray-700"
-            >
-              Filter by Country
-            </Label>
-            <Input
-              id="countryFilter"
-              value={countryFilter}
-              onChange={(e) => setCountryFilter(e.target.value)}
-              placeholder="e.g., Bangladesh"
-              className="mt-1 w-full md:w-64"
-            />
-          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-100">
-                  <TableHead className="text-gray-700">ID</TableHead>
                   <TableHead className="text-gray-700">Country</TableHead>
                   <TableHead className="text-gray-700">City</TableHead>
                   <TableHead className="text-gray-700 text-right">
@@ -351,11 +316,8 @@ export default function AdminDeliveryFeesPage() {
                       key={fee.id}
                       className="hover:bg-gray-50 transition-colors"
                     >
-                      <TableCell className="font-mono">
-                        {fee.id.slice(0, 8)}...
-                      </TableCell>
                       <TableCell>{fee.country}</TableCell>
-                      <TableCell>{fee.city || "N/A"}</TableCell>
+                      <TableCell>{fee.city || "All other districts"}</TableCell>
                       <TableCell className="text-right font-semibold">
                         ৳ {fee.amount.toLocaleString("en-BD")}
                       </TableCell>
@@ -384,7 +346,7 @@ export default function AdminDeliveryFeesPage() {
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={5}
                       className="text-center text-gray-500 py-6"
                     >
                       No delivery fees found.

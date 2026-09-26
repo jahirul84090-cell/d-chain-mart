@@ -7,7 +7,6 @@ import { data } from "./Dashboard-Kit/app-sidebar";
 
 // Page names for admin routes, derived from the sidebar plus detail pages.
 const EXTRA = [
-  ["/dashboard/order/edit/", "Edit order", "/dashboard/order/manage", "Orders"],
   ["/dashboard/order/", "Order details", "/dashboard/order/manage", "Orders"],
   ["/dashboard/users/", "Customer details", "/dashboard/users", "Customers"],
   ["/dashboard/product/edit/", "Edit product", "/dashboard/product/manage", "Products"],

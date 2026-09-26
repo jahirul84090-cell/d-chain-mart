@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 import { parseOptions } from "@/lib/product-options";
+import { formatBDT } from "@/lib/format";
 import { ColorOptions, SizeOptions } from "@/components/productCard/VariantSelector";
 
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
 
 import {
   Star,
@@ -58,11 +58,9 @@ const FeaturedProductCard = ({
   const isInCart = cart.some((item) => item.id === itemIdentifier);
   const currentCartItem = cart.find((item) => item.id === itemIdentifier);
   const isOutOfStock = product?.stockAmount === 0;
-  const isLowStock = product?.stockAmount > 0 && product?.stockAmount <= 20;
+  const isLowStock = product?.stockAmount > 0 && product?.stockAmount <= 5;
   const reviewCount = product?.reviews?.length || 0;
   const averageRating = calculateAverageRating(product?.reviews);
-  const totalStock = 100;
-  const stockPercentage = (product?.stockAmount / totalStock) * 100;
   const [addCart, setAddCart] = useState(false);
 
   const buttonText = addCart ? "Adding" : "Add to cart";
@@ -164,12 +162,11 @@ const FeaturedProductCard = ({
           </div>
           <div className="flex items-baseline space-x-2 py-2">
             <span className="text-xl text-primary font-bold">
-              <span className="text-xl font-bold">৳ </span>
-              {product.price.toLocaleString("en-BD")}
+              {formatBDT(product.price)}
             </span>
-            {product.oldPrice > 0 && (
+            {product.oldPrice > product.price && (
               <span className="text-xl line-through dark:text-gray-400">
-                {product.oldPrice.toLocaleString("en-BD")}
+                {formatBDT(product.oldPrice)}
               </span>
             )}
           </div>
@@ -194,25 +191,11 @@ const FeaturedProductCard = ({
           </div>
         </div>
 
-        {/* Stock Information with Shadcn Progress */}
-        <div className="mt-6">
-          {isLowStock && (
-            <p className="text-orange-600 text-sm font-semibold mb-2">
-              Only {product.stockAmount} left!
-            </p>
-          )}
-          {!isOutOfStock && (
-            <>
-              <Progress
-                value={stockPercentage}
-                className={`h-2 ${isLowStock ? "bg-red-500" : "bg-purple-600"}`}
-              />
-              <p className="text-sm text-gray-600 mt-2">
-                available: {product?.stockAmount}
-              </p>
-            </>
-          )}
-        </div>
+        {isLowStock && (
+          <p className="mt-4 text-sm font-semibold text-orange-600">
+            Only {product.stockAmount} left in stock
+          </p>
+        )}
 
         {/* Add to Cart / Quantity Controls */}
         <div className="mt-6 flex gap-4 flex-col">
@@ -386,12 +369,11 @@ const SmallProductCard = ({ product }) => {
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-base text-primary font-bold">
-              <span className="text-xl font-bold">৳ </span>
-              {product.price.toLocaleString("en-BD")}
+              {formatBDT(product.price)}
             </span>
-            {product.oldPrice > 0 && (
+            {product.oldPrice > product.price && (
               <span className="text-sm line-through dark:text-gray-400">
-                {product.oldPrice.toLocaleString("en-BD")}
+                {formatBDT(product.oldPrice)}
               </span>
             )}
           </div>

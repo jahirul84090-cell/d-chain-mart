@@ -16,7 +16,6 @@ export default function robots() {
           "/cart",
           "/wishlist",
           "/auth/",
-          "/payment/",
           "/loans/details",
         ],
       },

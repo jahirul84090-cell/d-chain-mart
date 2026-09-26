@@ -183,7 +183,7 @@ export default function ImageUpload() {
                   className={`w-full max-w-sm px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 transform shadow-lg ${
                     isLoading
                       ? "bg-gray-300 text-gray-700 cursor-not-allowed"
-                      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105 active:scale-95 text-white"
+                      : "bg-gradient-to-r from-blue-600 to-sky-600 hover:scale-105 active:scale-95 text-white"
                   }`}
                 >
                   {isLoading ? (

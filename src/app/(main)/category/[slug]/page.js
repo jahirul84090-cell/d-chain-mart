@@ -42,14 +42,9 @@ const makeAbsoluteUrl = (url) => {
   return `${siteUrl}/${url}`;
 };
 
-const getProductImage = (product) => {
-  const firstImage =
-    product?.images?.[0]?.url ||
-    product?.mainImage ||
-    product?.imageUrls?.split(",")?.[0];
-
-  return makeAbsoluteUrl(firstImage) || `${siteUrl}/og-default.png`;
-};
+// Main image first; relative paths stay relative for <Image>.
+const getProductImage = (product) =>
+  product?.mainImage || product?.images?.[0]?.url || "/placeholder.png";
 
 const getCategory = async (slug, page) => {
   const skip = (page - 1) * PRODUCTS_PER_PAGE;
@@ -200,15 +195,15 @@ export async function generateMetadata({ params, searchParams }) {
 }
 
 export async function generateStaticParams() {
-  const categories = await prisma.category.findMany({
-    select: {
-      slug: true,
-    },
-  });
-
-  return categories.map((category) => ({
-    slug: category.slug,
-  }));
+  // If the database is unreachable at build time, render categories on
+  // first request instead of failing the whole deploy.
+  try {
+    const categories = await prisma.category.findMany({ select: { slug: true } });
+    return categories.map((category) => ({ slug: category.slug }));
+  } catch (error) {
+    console.error("category generateStaticParams failed:", error.message);
+    return [];
+  }
 }
 
 export default async function CategoryProductsPage({ params, searchParams }) {
@@ -307,7 +302,7 @@ export default async function CategoryProductsPage({ params, searchParams }) {
         "@type": "Product",
         name: product.name,
         url: `${siteUrl}/product/${product.slug}`,
-        image: getProductImage(product),
+        image: makeAbsoluteUrl(getProductImage(product)),
         category: category.name,
         offers: {
           "@type": "Offer",
@@ -467,9 +462,15 @@ export default async function CategoryProductsPage({ params, searchParams }) {
                             className="object-cover transition duration-500 group-hover:scale-105"
                           />
 
-                          <div className="absolute left-3 top-3 rounded-full bg-[#2ea7f2] px-3 py-1 text-xs font-bold text-white">
-                            NEW
-                          </div>
+                          {product.isNewArrival ? (
+                            <div className="absolute left-3 top-3 rounded-full bg-[#2ea7f2] px-3 py-1 text-xs font-bold text-white">
+                              NEW
+                            </div>
+                          ) : product.discount > 0 ? (
+                            <div className="absolute left-3 top-3 rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white">
+                              -{product.discount}%
+                            </div>
+                          ) : null}
                         </div>
                       </Link>
 

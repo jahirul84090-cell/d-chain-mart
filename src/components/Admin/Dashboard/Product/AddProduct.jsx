@@ -258,6 +258,7 @@ export default function AddProduct() {
                         name="description"
                         control={form.control}
                         render={({ field: { onChange, value } }) => (
+                          <div className="rounded-md border border-gray-300 [&_.ql-container]:min-h-[180px] [&_.ql-container]:border-0 [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-gray-200">
                           <ReactQuill
                             theme="snow"
                             value={value}
@@ -265,6 +266,7 @@ export default function AddProduct() {
                             modules={quillModules}
                             placeholder="Product description"
                           />
+                          </div>
                         )}
                       />
                     </FormControl>

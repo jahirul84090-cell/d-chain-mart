@@ -6,10 +6,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Heart, Eye, Ban, CheckCircle, Star } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "react-toastify";
+import { formatBDT } from "@/lib/format";
 import { QuickViewModal } from "./QuickViewModal";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
-import { useSession } from "next-auth/react"; // Import NextAuth session
 import { useWishlistWithSession } from "@/lib/wishlistStore";
 
 const useProductWishlist = useWishlistWithSession;
@@ -37,19 +40,30 @@ const MergedProductCard = ({
     (item) => item.id === product.id || item.slug === product.slug
   );
 
-  const handleToggleWishlist = (e) => {
+  const { status } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleToggleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleWishlist(product);
+    if (status !== "authenticated") {
+      toast.info("Please log in to save items to your wishlist.");
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(pathname || "/")}`);
+      return;
+    }
+    const ok = await toggleWishlist(product, isProductInWishlist);
+    if (ok) toast.success(isProductInWishlist ? "Removed from wishlist." : "Added to wishlist!");
+    else toast.error("Could not update your wishlist.");
   };
   // ---------------------------------------------------
 
-  const averageRating = calculateAverageRating(product.reviews);
+  // Listing data carries either the reviews or a precomputed rating.
   const reviewCount = product.reviews?.length || 0;
-  const stockPercentage =
-    product.stockAmount > 0
-      ? (product.totalSales / product.stockAmount) * 100
-      : 0;
+  const averageRating = reviewCount
+    ? calculateAverageRating(product.reviews)
+    : Number(product.rating) || 0;
+  const lowStock = product.stockAmount > 0 && product.stockAmount <= 5;
 
   // Embla Carousel
   const autoplayOptions = useRef({ delay: 3000, stopOnInteraction: false });
@@ -143,7 +157,8 @@ const MergedProductCard = ({
                   />
                 </button>
                 <button
-                  aria-label="Quick View"
+                  type="button"
+                  aria-label={`Quick view ${product.name}`}
                   className="p-2 "
                   onClick={() => setIsDialogOpen(true)}
                 >
@@ -211,10 +226,13 @@ const MergedProductCard = ({
             </div>
 
             {/* Hover Icons */}
-            <div className="absolute top-1/2 right-3 -translate-y-1/2 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-300 ease-out z-30">
+            {/* Always visible on touch screens; revealed on hover/focus with a mouse */}
+            <div className="absolute top-1/2 right-3 -translate-y-1/2 opacity-100 md:opacity-0 md:translate-x-4 md:group-hover:opacity-100 md:group-hover:translate-x-0 md:group-focus-within:opacity-100 md:group-focus-within:translate-x-0 transition-all duration-300 ease-out z-30">
               <div className="flex flex-col items-center gap-3 bg-white rounded-md p-2 shadow-xl backdrop-blur-sm border border-gray-200 dark:bg-gray-700/80 dark:border-gray-600">
                 <button
-                  aria-label="Wishlist"
+                  type="button"
+                  aria-label={isProductInWishlist ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+                  aria-pressed={isProductInWishlist}
                   className="p-1"
                   onClick={handleToggleWishlist}
                   disabled={isToggling}
@@ -226,7 +244,8 @@ const MergedProductCard = ({
                   />
                 </button>
                 <button
-                  aria-label="Quick View"
+                  type="button"
+                  aria-label={`Quick view ${product.name}`}
                   className="p-1"
                   onClick={(e) => {
                     e.preventDefault();
@@ -245,26 +264,14 @@ const MergedProductCard = ({
             <CardTitle className="text-sm font-semibold line-clamp-2 h-10 dark:text-white">
               {product.name}
             </CardTitle>
-            {!isSlider && (
-              <>
-                <div className="flex items-center space-x-2 mt-1">
-                  <div className="flex items-center space-x-0.5 text-yellow-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < Math.round(averageRating)
-                            ? "fill-current"
-                            : "text-gray-300 dark:text-gray-500"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({reviewCount} review{reviewCount !== 1 ? "s" : ""})
-                  </span>
-                </div>
-              </>
+            {!isSlider && averageRating > 0 && (
+              <div className="mt-1 flex items-center gap-1.5" aria-label={`Rated ${averageRating.toFixed(1)} out of 5`}>
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" aria-hidden="true" />
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  {averageRating.toFixed(1)}
+                  {reviewCount > 0 && <span className="text-gray-500"> ({reviewCount})</span>}
+                </span>
+              </div>
             )}
 
             <div className="mt-2 text-sm flex items-center space-x-1 dark:text-gray-400">
@@ -284,36 +291,20 @@ const MergedProductCard = ({
 
           {/* Price */}
           <div className="flex items-baseline space-x-2">
-            <span className="text-base text-primary font-bold">
-              <span className="text-xl font-bold">৳ </span>
-              {product.price.toLocaleString("en-BD")}
+            <span className="text-lg text-primary font-bold">
+              {formatBDT(product.price)}
             </span>
-            {product.oldPrice > 0 && (
-              <span className="text-sm line-through dark:text-gray-400">
-                {product.oldPrice.toLocaleString("en-BD")}
+            {product.oldPrice > product.price && (
+              <span className="text-sm text-gray-500 line-through dark:text-gray-400">
+                {formatBDT(product.oldPrice)}
               </span>
             )}
           </div>
         </div>
 
         <div className="p-4 pt-0 space-y-3">
-          {!isSlider && (
-            <>
-              <div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(stockPercentage, 100)}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-1 font-semibold dark:text-gray-400">
-                  <span>Sold: {product.totalSales || 0}</span>
-                  <span>Total Stock: {product.stockAmount || 0}</span>
-                </div>
-              </div>
-            </>
+          {!isSlider && lowStock && (
+            <p className="text-xs font-semibold text-orange-600">Only {product.stockAmount} left</p>
           )}
 
           {isSoldOut ? (

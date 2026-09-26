@@ -12,6 +12,8 @@ import {
   HelpCircle,
   Tag,
   Home,
+  ShoppingBag,
+  Phone,
   X,
   Loader2,
   Truck,
@@ -71,9 +73,9 @@ const formatSlug = (name) => name.toLowerCase().replace(/\s/g, "-");
 export { useWishlistWithSession } from "@/lib/wishlistStore";
 
 const coreMenuLinks = [
-  { name: "Home", href: "/" },
-  { name: "Shop", href: "/allproducts" },
-  { name: "Contact", href: "/contact" },
+  { name: "Home", icon: Home, href: "/" },
+  { name: "Shop", icon: ShoppingBag, href: "/allproducts" },
+  { name: "Contact", icon: Phone, href: "/contact" },
 ];
 
 const extendedLinks = [
@@ -200,7 +202,7 @@ export default function EcommerceHeader({ initialCategories }) {
     categories.map((cat) => (
       <DropdownMenuItem
         key={cat.slug}
-        className="text-sm uppercase tracking-wide font-medium hover:bg-primary/10 hover:text-primary cursor-pointer px-4 py-2.5 rounded-md transition-colors"
+        className="text-sm font-medium hover:bg-primary/10 hover:text-primary cursor-pointer px-4 py-2.5 rounded-md transition-colors"
         onClick={() => handleNavigation(`/category/${cat.slug}`)}
       >
         {cat.name}
@@ -212,8 +214,8 @@ export default function EcommerceHeader({ initialCategories }) {
     <SheetClose asChild key={cat.slug}>
       <Button
         variant="outline"
-        className="justify-start truncate uppercase text-xs font-semibold tracking-wide hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
-        onClick={() => handleNavigation(`/allproducts?categoryId=${cat.id}`)}
+        className="justify-start truncate text-sm font-medium hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+        onClick={() => handleNavigation(`/category/${cat.slug}`)}
       >
         {cat.name}
       </Button>
@@ -436,18 +438,19 @@ export default function EcommerceHeader({ initialCategories }) {
                   <TabsContent value="menu" className="mt-0 px-4 py-2">
                     <ul className="space-y-0.5 py-2">
                       {coreMenuLinks.map((link) => (
-                        <SheetClose asChild key={link.name}>
-                          <li
-                            className="flex items-center gap-3 text-base font-semibold text-foreground hover:bg-primary/8 hover:text-primary px-3 py-3 rounded-xl transition-colors cursor-pointer group"
-                            onClick={() => handleNavigation(link.href)}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                              <Home className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                            </div>
-
-                            {link.name}
-                          </li>
-                        </SheetClose>
+                        <li key={link.name}>
+                          <SheetClose asChild>
+                            <Link
+                              href={link.href}
+                              className="group flex items-center gap-3 rounded-xl px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-primary/5 hover:text-primary"
+                            >
+                              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-primary/10">
+                                <link.icon className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
+                              </span>
+                              {link.name}
+                            </Link>
+                          </SheetClose>
+                        </li>
                       ))}
                     </ul>
 
@@ -455,25 +458,26 @@ export default function EcommerceHeader({ initialCategories }) {
 
                     <ul className="space-y-0.5">
                       {extendedLinks.map((link) => (
-                        <SheetClose asChild key={link.name}>
-                          <li
-                            className="flex items-center gap-3 text-sm font-medium text-foreground hover:bg-primary/8 hover:text-primary px-3 py-2.5 rounded-xl transition-colors cursor-pointer group"
-                            onClick={() => handleNavigation(link.href)}
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                              <link.icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                            </div>
-
-                            {link.name}
-                          </li>
-                        </SheetClose>
+                        <li key={link.name}>
+                          <SheetClose asChild>
+                            <Link
+                              href={link.href}
+                              className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-primary/5 hover:text-primary"
+                            >
+                              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted transition-colors group-hover:bg-primary/10">
+                                <link.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
+                              </span>
+                              {link.name}
+                            </Link>
+                          </SheetClose>
+                        </li>
                       ))}
                     </ul>
 
                     <Separator className="my-3" />
 
-                    <div className="flex items-center gap-2.5 px-3 py-3 text-xs text-primary font-semibold bg-primary/8 border border-primary/20 rounded-xl">
-                      <Truck className="h-4 w-4 shrink-0" />
+                    <div className="flex items-center gap-2.5 px-3 py-3 text-xs text-primary font-semibold bg-primary/5 border border-primary/20 rounded-xl">
+                      <Truck className="h-4 w-4 shrink-0" aria-hidden="true" />
                       Cash on delivery across Bangladesh
                     </div>
                   </TabsContent>

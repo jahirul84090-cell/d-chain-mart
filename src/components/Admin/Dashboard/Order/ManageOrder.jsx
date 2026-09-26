@@ -50,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { orderNumber } from "@/lib/format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ function DeleteModal({ orderId, isDeleting, onConfirm, onCancel }) {
           <p className="text-sm text-slate-600 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 leading-relaxed">
             Order{" "}
             <code className="font-mono font-semibold text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded text-xs">
-              {orderId?.slice(0, 8)}…
+              {orderNumber(orderId)}
             </code>{" "}
             and all associated data will be permanently removed.
           </p>
@@ -183,7 +184,7 @@ function IconBtn({
   variant = "default",
 }) {
   const variantCls = {
-    default: "hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50",
+    default: "hover:border-teal-400 hover:text-primary hover:bg-teal-50",
     blue: "hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50",
     red: "hover:border-red-400 hover:text-red-600 hover:bg-red-50",
   };
@@ -277,16 +278,22 @@ export default function OrderManagement() {
 
   const columns = [
     {
-      accessorKey: "sn",
-      header: () => <ColHead>#</ColHead>,
+      accessorKey: "id",
+      header: () => <ColHead>Order</ColHead>,
       cell: ({ row }) => (
-        <span className="text-xs text-slate-400">{row.index + 1}</span>
+        <button
+          type="button"
+          onClick={() => router.push(`/dashboard/order/${row.original.id}`)}
+          className="whitespace-nowrap text-xs font-semibold text-primary hover:underline"
+        >
+          {orderNumber(row.original.id)}
+        </button>
       ),
       enableSorting: false,
     },
     {
       accessorKey: "transactionNumber",
-      header: () => <ColHead>Transaction</ColHead>,
+      header: () => <ColHead>Payment ref.</ColHead>,
       cell: ({ row }) => (
         <TooltipProvider>
           <Tooltip>
@@ -311,7 +318,7 @@ export default function OrderManagement() {
       header: () => <ColHead>Customer</ColHead>,
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center shrink-0">
+          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
             {row.original.user.email[0].toUpperCase()}
           </span>
           <span className="text-sm text-slate-700 font-medium truncate max-w-[160px]">
@@ -496,16 +503,16 @@ export default function OrderManagement() {
   }, []);
 
   const inputCls =
-    "border-slate-200 focus:ring-2 focus:ring-indigo-400 rounded-xl shadow-sm text-sm h-10 placeholder:text-slate-400";
+    "border-slate-200 focus:ring-2 focus:ring-primary rounded-xl shadow-sm text-sm h-10 placeholder:text-slate-400";
   const selectCls =
     "w-full border-slate-200 bg-white text-slate-700 rounded-xl shadow-sm text-sm h-10";
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="p-4 md:p-6">
       <div className="max-w-[1400px] mx-auto space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 shadow-md">
+          <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary shadow-md">
             <ShoppingBag className="h-5 w-5 text-white" />
           </span>
           <div>
@@ -630,7 +637,7 @@ export default function OrderManagement() {
                       table.getRowModel().rows.map((row, i) => (
                         <TableRow
                           key={row.id}
-                          className={`border-b border-slate-50 hover:bg-indigo-50/40 transition-colors duration-100 ${i % 2 !== 0 ? "bg-slate-50/40" : ""}`}
+                          className={`border-b border-slate-50 hover:bg-primary/5/40 transition-colors duration-100 ${i % 2 !== 0 ? "bg-slate-50/40" : ""}`}
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell

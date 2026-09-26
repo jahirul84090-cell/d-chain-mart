@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import React from "react";
 
 export const metadata = {
-  title: "Create Your Account",
+  title: "Create an account",
   description:
     "Join our community and create an account to start shopping, manage your profile, and save your favorite items.",
 };

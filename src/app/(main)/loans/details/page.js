@@ -125,7 +125,7 @@ export default function UserLoansPage() {
       <div className="text-center space-y-3">
         <CreditCard className="mx-auto h-10 w-10 text-slate-300" />
         <p className="font-semibold">Sign in to view your loans</p>
-        <Button asChild><Link href="/auth/signin">Sign In</Link></Button>
+        <Button asChild><Link href="/auth/login?callbackUrl=/loans/details">Sign in</Link></Button>
       </div>
     </div>
   );

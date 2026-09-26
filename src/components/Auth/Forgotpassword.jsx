@@ -1,154 +1,77 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
+import AuthCard from "./AuthCard";
+import { AuthField, EMAIL_RE, FormAlert, SubmitButton } from "./AuthFormParts";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
   const router = useRouter();
+  const [email, setEmail] = useState(useSearchParams().get("email") || "");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let timer;
-    if (resendTimer > 0) {
-      timer = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [resendTimer]);
-
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
-    setIsLoading(true);
-    setResendTimer(60);
+    const value = email.trim();
+    if (!EMAIL_RE.test(value)) return setError("Please enter a valid email address.");
 
-    if (!email) {
-      setError("Email is required");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Invalid email format");
-      setIsLoading(false);
-      return;
-    }
-
+    setLoading(true);
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: value }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to send reset OTP");
-        setIsLoading(false);
+      const data = await res.json().catch(() => ({}));
+      // 429 means a code was sent less than a minute ago: carry on to the
+      // code screen rather than blocking the customer.
+      if (!res.ok && res.status !== 429) {
+        setError(data.error || "We couldn't send the code. Please try again.");
+        setLoading(false);
         return;
       }
-
-      setSuccess("A password reset OTP has been sent to your email.");
-      setTimeout(
-        () =>
-          router.push(
-            `/auth/reset-password?email=${encodeURIComponent(email)}`
-          ),
-        2000
-      );
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-      setIsLoading(false);
+      toast.success("If an account exists for this email, we've sent a 6-digit code.");
+      router.push(`/auth/reset-password?email=${encodeURIComponent(value)}`);
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-gray-100 px-4">
-      <Card className="w-full max-w-md shadow-lg border border-gray-200">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            Reset Password
-          </CardTitle>
-          <CardDescription className="text-gray-600">
-            Enter your email to receive a password reset OTP.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label
-                htmlFor="email"
-                className="text-sm font-medium text-gray-700"
-              >
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.email@example.com"
-                className="border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
-            )}
-            {success && (
-              <p className="text-green-500 text-sm text-center">{success}</p>
-            )}
-            <Button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={isLoading || resendTimer > 0}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending OTP...
-                </>
-              ) : resendTimer > 0 ? (
-                `Send Reset OTP (${resendTimer}s)`
-              ) : (
-                "Send Reset OTP"
-              )}
-            </Button>
-          </form>
-          <div className="mt-4 text-center text-sm text-gray-600 space-y-2">
-            <p>
-              Remember your password?{" "}
-              <a href="/auth/login" className="text-blue-500 hover:underline">
-                Sign in
-              </a>
-            </p>
-            <p>
-              Don't have an account?{" "}
-              <a href="/auth/signup" className="text-blue-500 hover:underline">
-                Sign up
-              </a>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthCard
+      title="Forgot your password?"
+      subtitle="Enter the email you signed up with and we'll send you a code to reset it."
+      footer={
+        <>
+          Remembered it?{" "}
+          <Link href="/auth/login" className="font-semibold text-primary hover:underline">
+            Back to sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4" noValidate>
+        <FormAlert>{error}</FormAlert>
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <SubmitButton loading={loading} loadingText="Sending code…">
+          Send reset code
+        </SubmitButton>
+      </form>
+    </AuthCard>
   );
 }

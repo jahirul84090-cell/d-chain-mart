@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { orderNumber } from "@/lib/format";
 
 export default function AdminUserDetailsPage() {
   const router = useRouter();
@@ -250,7 +251,7 @@ export default function AdminUserDetailsPage() {
                 <TableRow className="border-gray-200">
                   <TableHead className="w-[40px]"></TableHead>
                   <TableHead className="text-gray-500">Order ID</TableHead>
-                  <TableHead className="text-gray-500">Total ($)</TableHead>
+                  <TableHead className="text-gray-500">Total</TableHead>
                   <TableHead className="text-gray-500">Status</TableHead>
                   <TableHead className="text-gray-500">
                     Shipping Address
@@ -280,7 +281,7 @@ export default function AdminUserDetailsPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium text-gray-900">
-                          {order.id.slice(0, 8)}
+                          {orderNumber(order.id)}
                         </TableCell>
                         <TableCell className="text-gray-700">
                           {formatCurrency(order.orderTotal)}

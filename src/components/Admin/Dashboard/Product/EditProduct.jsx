@@ -222,7 +222,7 @@ export default function EditProduct() {
     return (
       <div className="container mx-auto p-4 md:p-8 max-w-full bg-gray-100 min-h-screen font-sans">
         <Card className="shadow-2xl border-none rounded-2xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-600 p-6">
+          <CardHeader className="border-b bg-white p-6">
             <Skeleton className="h-8 w-48 bg-gray-500 rounded-lg" />
           </CardHeader>
           <CardContent className="p-6 bg-white space-y-6">
@@ -260,8 +260,8 @@ export default function EditProduct() {
       </div>
 
       <Card className="shadow-2xl border-none rounded-2xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-600 p-6">
-          <CardTitle className="text-2xl font-bold text-white tracking-tight">
+        <CardHeader className="border-b bg-white p-6">
+          <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             Product Details
           </CardTitle>
         </CardHeader>
@@ -275,7 +275,7 @@ export default function EditProduct() {
                 <Input
                   id="name"
                   {...register("name", { required: "Name is required" })}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
                 {errors.name && (
                   <p className="text-red-500 text-sm mt-1">
@@ -294,7 +294,7 @@ export default function EditProduct() {
                     setValueAs: (v) => slugify(v),
                     validate: (v) => slugError(slugify(v)) || true,
                   })}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
                 {errors.slug && (
                   <p className="text-red-500 text-sm mt-1">
@@ -319,7 +319,7 @@ export default function EditProduct() {
                 rows={3}
                 maxLength={200}
                 placeholder="A brief summary of the product (max 200 characters)"
-                className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
               />
               {errors.shortdescription && (
                 <p className="text-red-500 text-sm mt-1">
@@ -339,13 +339,15 @@ export default function EditProduct() {
                 name="description"
                 control={form.control}
                 render={({ field }) => (
-                  <ReactQuill
+                  <div className="rounded-md border border-gray-300 [&_.ql-container]:min-h-[180px] [&_.ql-container]:border-0 [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-gray-200">
+                          <ReactQuill
                     id="description"
                     theme="snow"
                     value={field.value}
                     onChange={field.onChange}
                     className="bg-white rounded-lg"
                   />
+                          </div>
                 )}
               />
               {errors.description && (
@@ -372,7 +374,7 @@ export default function EditProduct() {
                       trigger("oldPrice");
                     },
                   })}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
                 {errors.price && (
                   <p className="text-red-500 text-sm mt-1">
@@ -398,7 +400,7 @@ export default function EditProduct() {
                       parseFloat(value) >= parseFloat(watch("price")) ||
                       "Old price must be greater than or equal to current price",
                   })}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
                 {errors.oldPrice && (
                   <p className="text-red-500 text-sm mt-1">
@@ -415,7 +417,7 @@ export default function EditProduct() {
                   type="number"
                   {...register("discount")}
                   readOnly
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
               </div>
             </div>
@@ -435,7 +437,7 @@ export default function EditProduct() {
                     required: "Stock amount is required",
                     min: { value: 0, message: "Stock must be non-negative" },
                   })}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                 />
                 {errors.stockAmount && (
                   <p className="text-red-500 text-sm mt-1">
@@ -491,7 +493,7 @@ export default function EditProduct() {
                 <Input
                   id="availableSizes"
                   {...register("availableSizes")}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                   placeholder="e.g., S, M, L, XL"
                 />
                 {errors.availableSizes && (
@@ -510,7 +512,7 @@ export default function EditProduct() {
                 <Input
                   id="availableColors"
                   {...register("availableColors")}
-                  className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
+                  className="border-gray-300 focus:ring-primary rounded-lg shadow-sm"
                   placeholder="e.g., Red, Blue, Black"
                 />
                 {errors.availableColors && (
@@ -533,7 +535,7 @@ export default function EditProduct() {
                   id="isFeatured"
                   checked={watch("isFeatured")}
                   onCheckedChange={(checked) => setValue("isFeatured", checked)}
-                  className="data-[state=checked]:bg-teal-500"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -547,7 +549,7 @@ export default function EditProduct() {
                   id="isPopular"
                   checked={watch("isPopular")}
                   onCheckedChange={(checked) => setValue("isPopular", checked)}
-                  className="data-[state=checked]:bg-teal-500"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -563,7 +565,7 @@ export default function EditProduct() {
                   onCheckedChange={(checked) =>
                     setValue("isNewArrival", checked)
                   }
-                  className="data-[state=checked]:bg-teal-500"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -574,7 +576,7 @@ export default function EditProduct() {
                   id="isSlider"
                   checked={watch("isSlider")}
                   onCheckedChange={(checked) => setValue("isSlider", checked)}
-                  className="data-[state=checked]:bg-teal-500"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -585,7 +587,7 @@ export default function EditProduct() {
                   id="isActive"
                   checked={watch("isActive")}
                   onCheckedChange={(checked) => setValue("isActive", checked)}
-                  className="data-[state=checked]:bg-teal-500"
+                  className="data-[state=checked]:bg-primary"
                 />
               </div>
             </div>

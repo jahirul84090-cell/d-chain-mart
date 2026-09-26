@@ -20,9 +20,6 @@ const supportEmail =
 const supportPhone =
   process.env.NEXT_PUBLIC_SUPPORT_PHONE || "+8801923363194";
 
-const formattedPhone =
-  process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY || "+880 1923-363194";
-
 export const metadata = {
   metadataBase: new URL(siteUrl),
 
@@ -158,38 +155,6 @@ export default function ContactPage() {
     ],
   };
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "@id": `${pageUrl}#faq`,
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "How can I contact D Chin Mart?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `You can contact D Chin Mart by phone at ${formattedPhone} or by email at ${supportEmail}.`,
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I contact D Chin Mart for order support?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes, you can contact D Chin Mart for order updates, delivery information, product questions and return support.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does D Chin Mart provide EMI support?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes, D Chin Mart provides support for eligible EMI or installment product inquiries.",
-        },
-      },
-    ],
-  };
-
   return (
     <>
       <script
@@ -206,17 +171,6 @@ export default function ContactPage() {
         }}
       />
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: toJsonLd(faqJsonLd),
-        }}
-      />
-
-      <h1 className="sr-only">
-        Contact D Chin Mart Bangladesh - Customer Support, Order Help, Delivery,
-        Returns and EMI Support
-      </h1>
 
       <ContactClient />
     </>

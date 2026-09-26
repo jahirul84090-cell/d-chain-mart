@@ -1,12 +1,7 @@
 import VerifyOTP from "@/components/Auth/VeryfyOtp";
-import React from "react";
 
-const page = () => {
-  return (
-    <div>
-      <VerifyOTP />
-    </div>
-  );
-};
+export const metadata = { title: "Verify your email" };
 
-export default page;
+export default function Page() {
+  return <VerifyOTP />;
+}

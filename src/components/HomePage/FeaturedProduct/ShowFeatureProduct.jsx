@@ -13,7 +13,7 @@ const ShowFeatureProduct = ({ products }) => {
             Featured
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Don’t miss these exclusive deals this week.
+            Hand-picked favourites from our collection.
           </p>
         </div>
 

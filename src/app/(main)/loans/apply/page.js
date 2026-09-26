@@ -545,7 +545,7 @@ export default function ApplyLoanPage() {
             <BadgeCheck className="h-9 w-9 text-white" />
           </div>
           <h2 className="text-2xl font-black">Application Submitted!</h2>
-          <p className="mt-1.5 text-sm opacity-80">We'll review and contact you within 24–48 hours.</p>
+          <p className="mt-1.5 text-sm opacity-80">We&apos;ll review and contact you within 24–48 hours.</p>
         </div>
         <div className="space-y-4 p-6">
           <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60 space-y-2 text-sm">
@@ -671,7 +671,7 @@ export default function ApplyLoanPage() {
                   <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 dark:border-blue-900/40 dark:bg-blue-950/20">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
                     <p className="text-xs leading-relaxed text-blue-700 dark:text-blue-300">
-                      Choose your down payment in the next step. You'll upload NID photos and a nominee photo in step 4.
+                      Choose your down payment in the next step. You&apos;ll upload NID photos and a nominee photo in step 4.
                     </p>
                   </div>
                 </div>
@@ -1025,7 +1025,7 @@ export default function ApplyLoanPage() {
                   <Progress value={(docsCount / DOC_SLOTS.length) * 100} className="h-2" />
                   {allDocs && (
                     <p className="text-center text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                      ✓ All documents uploaded — you're ready to proceed!
+                      ✓ All documents uploaded — you&apos;re ready to proceed!
                     </p>
                   )}
                 </div>

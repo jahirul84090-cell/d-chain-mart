@@ -82,11 +82,9 @@ export async function generateMetadata({ params }) {
     `Buy ${title} online at the best price in Bangladesh.`;
   const description = truncate(rawDesc, 155);
 
-  const images = (
-    product.images?.length ? product.images : [{ url: product.mainImage }]
-  )
-    .map((img) => img?.url)
-    .filter(Boolean);
+  const images = [
+    ...new Set([product.mainImage, ...(product.images || []).map((i) => i?.url)].filter(Boolean)),
+  ];
 
   const primaryImage = images[0] || `${baseUrl}/og-default.png`;
 
@@ -172,11 +170,9 @@ export default async function ProductPage({ params }) {
   const baseUrl = getSiteUrl();
   const productUrl = `${baseUrl}/${encodeURIComponent(product.slug)}`;
 
-  const images = (
-    product.images?.length ? product.images : [{ url: product.mainImage }]
-  )
-    .map((i) => i?.url)
-    .filter(Boolean);
+  const images = [
+    ...new Set([product.mainImage, ...(product.images || []).map((i) => i?.url)].filter(Boolean)),
+  ];
 
   const inStock = (product.stockAmount ?? 0) > 0;
 

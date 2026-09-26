@@ -279,12 +279,12 @@ export default function ManualInvoiceCreatorPage() {
       <ToastContainer position="top-center" autoClose={5000} />
       <Card className="shadow-2xl border-2 border-gray-100 rounded-xl overflow-hidden">
         {/* Header */}
-        <CardHeader className="bg-gray-800 text-white p-6 sm:p-8">
+        <CardHeader className="border-b bg-white p-6 sm:p-8">
           <CardTitle className="text-3xl font-extrabold tracking-tight flex items-center">
             <Save className="mr-3 h-8 w-8 text-indigo-400" /> Manual Order &amp;
             Invoice Creator
           </CardTitle>
-          <CardDescription className="text-gray-400 mt-1">
+          <CardDescription className="text-gray-500 mt-1">
             Generate a new sales order and associated invoice for a customer.
           </CardDescription>
         </CardHeader>
@@ -297,7 +297,7 @@ export default function ManualInvoiceCreatorPage() {
               <Card className="bg-white border border-gray-200 shadow-md">
                 <CardHeader className="border-b pb-4">
                   <CardTitle className="flex items-center text-xl font-bold text-gray-800">
-                    <Users className="mr-2 h-6 w-6 text-indigo-600" /> Customer
+                    <Users className="mr-2 h-6 w-6 text-primary" /> Customer
                     Details
                   </CardTitle>
                 </CardHeader>
@@ -310,7 +310,7 @@ export default function ManualInvoiceCreatorPage() {
                       id="customerName"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="e.g., John Doe"
+                      placeholder="e.g. Rahim Uddin"
                       required
                     />
                   </div>
@@ -323,7 +323,7 @@ export default function ManualInvoiceCreatorPage() {
                       type="email"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="e.g., john.doe@example.com"
+                      placeholder="e.g. rahim@example.com"
                       required
                     />
                   </div>
@@ -334,7 +334,7 @@ export default function ManualInvoiceCreatorPage() {
               <Card className="bg-white border border-gray-200 shadow-md">
                 <CardHeader className="border-b pb-4">
                   <CardTitle className="flex items-center text-xl font-bold text-gray-800">
-                    <MapPin className="mr-2 h-6 w-6 text-indigo-600" /> Shipping
+                    <MapPin className="mr-2 h-6 w-6 text-primary" /> Shipping
                     Address
                   </CardTitle>
                 </CardHeader>
@@ -348,7 +348,7 @@ export default function ManualInvoiceCreatorPage() {
                         id="street"
                         value={shippingStreet}
                         onChange={(e) => setShippingStreet(e.target.value)}
-                        placeholder="123 Main St"
+                        placeholder="House 12, Road 5, Dhanmondi"
                         required
                       />
                     </div>
@@ -360,7 +360,7 @@ export default function ManualInvoiceCreatorPage() {
                         id="city"
                         value={shippingCity}
                         onChange={(e) => setShippingCity(e.target.value)}
-                        placeholder="Anytown"
+                        placeholder="Dhaka"
                         required
                       />
                     </div>
@@ -370,7 +370,7 @@ export default function ManualInvoiceCreatorPage() {
                         id="state"
                         value={shippingState}
                         onChange={(e) => setShippingState(e.target.value)}
-                        placeholder="CA"
+                        placeholder="Dhanmondi"
                       />
                     </div>
                   </div>
@@ -384,7 +384,7 @@ export default function ManualInvoiceCreatorPage() {
                         id="zipCode"
                         value={shippingZipCode}
                         onChange={(e) => setShippingZipCode(e.target.value)}
-                        placeholder="12345"
+                        placeholder="1205"
                         required
                       />
                     </div>
@@ -409,7 +409,7 @@ export default function ManualInvoiceCreatorPage() {
                         type="tel"
                         value={shippingPhoneNumber}
                         onChange={(e) => setShippingPhoneNumber(e.target.value)}
-                        placeholder="+8801XXXXXXXXX"
+                        placeholder="01712345678"
                         required
                       />
                     </div>
@@ -424,7 +424,7 @@ export default function ManualInvoiceCreatorPage() {
             <Card className="bg-white border border-gray-200 shadow-lg relative z-20">
               <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
                 <CardTitle className="flex items-center text-xl font-bold text-gray-800">
-                  <ShoppingCart className="mr-2 h-6 w-6 text-indigo-600" /> Line
+                  <ShoppingCart className="mr-2 h-6 w-6 text-primary" /> Line
                   Items
                 </CardTitle>
                 <Button
@@ -432,7 +432,7 @@ export default function ManualInvoiceCreatorPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleAddItem}
-                  className="font-semibold text-indigo-600 border-indigo-600 hover:bg-indigo-50 transition-colors"
+                  className="font-semibold text-primary border-indigo-600 hover:bg-primary/5 transition-colors"
                 >
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Item
                 </Button>
@@ -536,7 +536,7 @@ export default function ManualInvoiceCreatorPage() {
               <Card className="bg-white border border-gray-200 shadow-md">
                 <CardHeader className="border-b pb-4">
                   <CardTitle className="flex items-center text-xl font-bold text-gray-800">
-                    <CreditCard className="mr-2 h-6 w-6 text-indigo-600" />
+                    <CreditCard className="mr-2 h-6 w-6 text-primary" />
                     Payment Method
                   </CardTitle>
                 </CardHeader>
@@ -565,7 +565,7 @@ export default function ManualInvoiceCreatorPage() {
               <Card className="bg-white border border-gray-200 shadow-md flex flex-col justify-between">
                 <CardHeader className="border-b pb-4">
                   <CardTitle className="flex items-center text-xl font-bold text-gray-800">
-                    <DollarSign className="mr-2 h-6 w-6 text-indigo-600" />{" "}
+                    <DollarSign className="mr-2 h-6 w-6 text-primary" />{" "}
                     Order Summary
                   </CardTitle>
                 </CardHeader>
@@ -598,7 +598,7 @@ export default function ManualInvoiceCreatorPage() {
                   <Button
                     type="submit"
                     disabled={isSubmitting || lineItems.length === 0}
-                    className="w-full h-12 text-lg font-semibold bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-lg"
+                    className="w-full h-12 text-lg font-semibold bg-primary hover:bg-primary/90 transition-colors shadow-lg"
                   >
                     {isSubmitting ? (
                       <>

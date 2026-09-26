@@ -1,8 +1,8 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 
-// Page prefixes that are matched only so they get noindex headers.
-const publicPagePrefixes = ["/auth/", "/payment/"];
+// Auth pages are public; they are matched only to add noindex headers.
+const publicPagePrefixes = ["/auth/"];
 
 const publicApiPaths = [
   { path: "/api/admin/product", method: "GET" },
@@ -12,7 +12,6 @@ const publicApiPaths = [
   { path: "/api/admin/product/", method: "GET", prefix: true },
   { path: "/api/auth", method: "ALL", prefix: true },
   { path: "/api/contact", method: "POST" },
-  { path: "/api/payment/sslcommerz", method: "ALL", prefix: true },
 ];
 
 // Pages that must never appear in search results.
@@ -26,7 +25,6 @@ const noIndexPrefixes = [
   "/wishlist",
   "/loans",
   "/auth",
-  "/payment",
 ];
 
 function withNoIndex(response, pathname) {
@@ -100,7 +98,6 @@ export const config = {
     "/cart",
     "/loans/:path*",
     "/wishlist",
-    "/payment/:path*",
     "/api/:path*",
     "/auth/:path*",
   ],

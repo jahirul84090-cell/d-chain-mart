@@ -13,17 +13,11 @@ export async function decodeJwtToken(request) {
       secureCookie: process.env.NODE_ENV === "production",
     });
     if (!token) {
-      console.log("decodeJwtToken: No token found", {
-        timestamp: new Date().toISOString(),
-      });
       return { user: null, error: "No token" };
     }
 
     if (!token.id || !token.email) {
-      console.error("decodeJwtToken: Invalid token payload", {
-        payload: token,
-        timestamp: new Date().toISOString(),
-      });
+      console.error("decodeJwtToken: token is missing id or email");
       return { user: null, error: "Invalid token payload" };
     }
 

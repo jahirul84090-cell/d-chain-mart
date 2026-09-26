@@ -109,12 +109,12 @@ export default function SingleProductDetail({ productData }) {
   const userId = session?.user?.id;
 
   /* image state */
-  const hasImages = productData?.images?.length > 0;
-  const allImages = hasImages
-    ? productData.images.map((i) => i.url).filter(Boolean)
-    : productData?.mainImage
-    ? [productData.mainImage]
-    : [];
+  // Main image first, then the gallery, without duplicates.
+  const allImages = [
+    ...new Set(
+      [productData?.mainImage, ...(productData?.images || []).map((i) => i.url)].filter(Boolean)
+    ),
+  ];
 
   const [activeImg, setActiveImg] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);

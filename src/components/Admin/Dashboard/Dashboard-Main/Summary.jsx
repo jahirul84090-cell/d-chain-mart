@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Image from "next/image";
+import { orderNumber } from "@/lib/format";
 
 export default function Summary() {
   const [loading, setLoading] = useState(true);
@@ -279,7 +280,7 @@ export default function Summary() {
                 {dashboardData.recentOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium text-xs">
-                      {order.id.slice(0, 8)}...
+                      {orderNumber(order.id)}
                     </TableCell>
                     <TableCell>{order.user.name}</TableCell>
                     <TableCell>{formatCurrency(order.orderTotal)}</TableCell>

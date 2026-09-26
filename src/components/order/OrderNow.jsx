@@ -575,7 +575,7 @@ export default function OrderNowPage() {
               {renderPaymentButton()}
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Secured with 256-bit SSL encryption
+                Secure checkout · Pay on delivery or by mobile banking
               </div>
             </div>
           </Card>

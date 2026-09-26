@@ -85,7 +85,6 @@ export async function POST(request) {
     // // Fetch all media
     // const allMedia = await prisma.media.findMany();
 
-    console.log(uploadedMedia);
 
     return NextResponse.json({ message: "done" }, { status: 201 });
   } catch (error) {
