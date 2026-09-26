@@ -7,6 +7,7 @@ import {
   Sparkles,
   ShoppingBag,
 } from "lucide-react";
+import { toJsonLd } from "@/lib/jsonld";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const siteUrl = (
 export const metadata = {
   metadataBase: new URL(siteUrl),
 
-  title: `Shop by Category | ${siteName} Bangladesh`,
+  title: "Shop by Category",
 
   description:
     "Browse product categories at D Chin Mart Bangladesh. Shop mobiles, laptops, electronics, accessories and more with COD and EMI facilities.",
@@ -163,21 +164,21 @@ export default async function CategoryPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbJsonLd),
+          __html: toJsonLd(breadcrumbJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(collectionJsonLd),
+          __html: toJsonLd(collectionJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(itemListJsonLd),
+          __html: toJsonLd(itemListJsonLd),
         }}
       />
 

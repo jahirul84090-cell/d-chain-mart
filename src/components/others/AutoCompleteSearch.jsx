@@ -119,7 +119,7 @@ export function HeaderSearchComponent({
 
   const handleFullSearch = () => {
     if (!query.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(query)}`);
+    router.push(`/allproducts?q=${encodeURIComponent(query)}`);
     handleSuggestionClick();
   };
 
@@ -270,12 +270,11 @@ export function HeaderSearchComponent({
                           <Image
                             src={
                               product.mainImage ||
-                              "https://placehold.co/60x60?text=IMG"
+                              "/placeholder.png"
                             }
                             alt={product.name}
                             fill
-                            className="object-cover"
-                          />
+                            className="object-cover" sizes="48px" />
                         </div>
 
                         {/* Product info */}

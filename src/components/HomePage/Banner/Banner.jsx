@@ -1,23 +1,14 @@
 import React from "react";
 import HeroSection from "./HeroSection";
-import { fetchProductsByFilter } from "@/lib/apihelper";
+import { getProductsByFlag, safely } from "@/lib/storefront";
 
 const Banner = async () => {
-  const { products: sliderProducts } = await fetchProductsByFilter({
-    isSlider: true,
-  });
+  const sliderProducts = await safely(getProductsByFlag("isSlider"), []);
 
-  return (
-    <div className="min-h-screen">
-      {sliderProducts.length > 0 ? (
-        <HeroSection sliderProducts={sliderProducts} />
-      ) : (
-        <div className="flex justify-center items-center h-full text-lg">
-          No slider products available.
-        </div>
-      )}
-    </div>
-  );
+  // Hide the hero entirely instead of showing an empty full-screen block.
+  if (sliderProducts.length === 0) return null;
+
+  return <HeroSection sliderProducts={sliderProducts} />;
 };
 
 export default Banner;

@@ -1,7 +1,9 @@
 // app/(main)/allproducts/page.js
 
 import AllProducts from "@/components/website/All Products/AllProducts";
-import React from "react";
+import React, { Suspense } from "react";
+import PageLoader from "@/components/others/PageLoader";
+import { toJsonLd } from "@/lib/jsonld";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -61,13 +63,13 @@ export const metadata = {
     type: "website",
     url: PAGE_URL,
     siteName: SITE_NAME,
-    locale: "bn_BD",
+    locale: "en_BD",
     title: `Shop All Products | ${SITE_NAME}`,
     description:
       "Explore all products at D Chin Mart — new arrivals, best deals, and top categories with fast delivery across Bangladesh.",
     images: [
       {
-        url: `${SITE_URL}/og-allproducts.png`,
+        url: `${SITE_URL}/og-default.png`,
         width: 1200,
         height: 630,
         alt: `Shop All Products — ${SITE_NAME}`,
@@ -81,7 +83,7 @@ export const metadata = {
     title: `Shop All Products | ${SITE_NAME}`,
     description:
       "Explore all products at D Chin Mart — new arrivals, best deals, and fast delivery in Bangladesh.",
-    images: [`${SITE_URL}/og-allproducts.png`],
+    images: [`${SITE_URL}/og-default.png`],
   },
 };
 
@@ -92,7 +94,7 @@ export const metadata = {
 async function getProductsForJsonLd() {
   try {
     const res = await fetch(`${SITE_URL}/api/admin/product?limit=50&fields=name,slug,price,mainImage,images,category`,{
-    cache: "no-store",
+    next: { revalidate: 600 },
   });
     if (!res.ok) return [];
     const data = await res.json();
@@ -199,24 +201,29 @@ export default async function AllProductsPage() {
       {/* Breadcrumb */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
       />
 
       {/* CollectionPage */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(collectionJsonLd) }}
       />
 
       {/* ItemList — only when products loaded */}
       {itemListJsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: toJsonLd(itemListJsonLd) }}
         />
       )}
 
-      <AllProducts />
+      {/* AllProducts reads filters from the URL, so it needs a Suspense boundary. */}
+      <Suspense
+        fallback={<PageLoader label="Loading products…" />}
+      >
+        <AllProducts />
+      </Suspense>
     </>
   );
 }

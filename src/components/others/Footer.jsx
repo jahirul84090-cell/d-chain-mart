@@ -23,6 +23,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { toJsonLd } from "@/lib/jsonld";
 
 const siteName = process.env.SITE_NAME || "D Chin Mart";
 
@@ -151,7 +152,7 @@ const Footer = async () => {
       {
         "@type": "ContactPoint",
         contactType: "customer support",
-        telephone: "+8801700000000",
+        telephone: "+8801923363194",
         email: supportEmail,
         areaServed: "BD",
         availableLanguage: ["English", "Bengali"],
@@ -164,7 +165,7 @@ const Footer = async () => {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(organizationJsonLd),
+          __html: toJsonLd(organizationJsonLd),
         }}
       />
 

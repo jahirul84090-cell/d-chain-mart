@@ -175,13 +175,11 @@ export default function UserProfile() {
                 <div className="flex flex-col items-center">
                   <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200 shadow-md">
                     {imagePreview ? (
-                      <Image
+                      <Image className="object-cover"
                         src={imagePreview}
                         alt="Profile"
-                        layout="fill"
-                        objectFit="cover"
-                        priority
-                      />
+                        fill
+                        priority sizes="128px" unoptimized />
                     ) : (
                       <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
                         <ImageIcon className="w-12 h-12" />

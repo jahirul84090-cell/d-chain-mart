@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { toJsonLd } from "@/lib/jsonld";
 
 export const dynamic = "force-dynamic";
 
@@ -127,8 +128,8 @@ export async function generateMetadata({ params, searchParams }) {
 
   const title =
     page > 1
-      ? `${category.name} Price in Bangladesh - Page ${page} `
-      : `${category.name} Price in Bangladesh `;
+      ? `${category.name} Price in Bangladesh - Page ${page}`
+      : `${category.name} Price in Bangladesh`;
 
   const description = `Shop ${category.name} products online at ${siteName} Bangladesh. Find latest prices, best deals, cash on delivery and EMI facilities.`;
 
@@ -331,21 +332,21 @@ export default async function CategoryProductsPage({ params, searchParams }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbJsonLd),
+          __html: toJsonLd(breadcrumbJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(collectionJsonLd),
+          __html: toJsonLd(collectionJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(itemListJsonLd),
+          __html: toJsonLd(itemListJsonLd),
         }}
       />
 

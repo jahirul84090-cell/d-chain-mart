@@ -14,7 +14,6 @@ import {
   Loader2,
   Truck,
 } from "lucide-react";
-import { toast } from "react-toastify";
 import Image from "next/image";
 
 import {
@@ -99,16 +98,29 @@ const extendedLinks = [
   { name: "VISIT OUR SHOWROOM", icon: MapPin, href: "/showroom" },
 ];
 
-export default function EcommerceHeader() {
+const toMenuCategories = (items = []) =>
+  items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    slug: item.slug || formatSlug(item.name),
+  }));
+
+export default function EcommerceHeader({ initialCategories }) {
   const [activeTab, setActiveTab] = useState("menu");
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const [scrolled, setScrolled] = useState(false);
 
-  const [categories, setCategories] = useState([]);
+  // Categories are normally rendered on the server and passed in, so the
+  // menu is ready immediately without an extra request.
+  const hasInitial = Array.isArray(initialCategories);
 
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categories, setCategories] = useState(() =>
+    hasInitial ? toMenuCategories(initialCategories) : []
+  );
+
+  const [loadingCategories, setLoadingCategories] = useState(!hasInitial);
 
   const [categoryError, setCategoryError] = useState(null);
 
@@ -117,11 +129,11 @@ export default function EcommerceHeader() {
   const router = useRouter();
 
   useEffect(() => {
+    if (hasInitial) return;
+
     async function fetchCategories() {
       try {
-        const response = await fetch("/api/admin/categories", {
-          cache: "no-store",
-        });
+        const response = await fetch("/api/admin/categories");
 
         if (!response.ok) {
           throw new Error(`Failed to fetch categories: ${response.statusText}`);
@@ -129,25 +141,18 @@ export default function EcommerceHeader() {
 
         const { categories: data } = await response.json();
 
-        setCategories(
-          data.map((item) => ({
-            id: item.id,
-            name: item.name,
-            slug: item.slug || formatSlug(item.name),
-          })),
-        );
+        setCategories(toMenuCategories(data));
 
         setCategoryError(null);
       } catch (error) {
         setCategoryError("Failed to load categories.");
-        toast.error("Failed to load product categories.");
       } finally {
         setLoadingCategories(false);
       }
     }
 
     fetchCategories();
-  }, []);
+  }, [hasInitial]);
 
   useEffect(() => {
     const COLLAPSE_AT = 96;

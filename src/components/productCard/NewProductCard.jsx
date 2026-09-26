@@ -19,12 +19,11 @@ const NewProductCard = ({ product, tags, buttonText }) => {
           <Image
             src={
               product.mainImage ||
-              "https://placehold.co/400x300/E5E7EB/A2A9B0?text=No+Image"
+              "/placeholder.png"
             }
             alt={product.name}
             fill
-            className="object-contain transition-transform duration-300 group-hover:scale-110"
-          />
+            className="object-contain transition-transform duration-300 group-hover:scale-110" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" />
 
           <div className="absolute top-0 left-0 w-full flex justify-between p-2 z-10">
             <div className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded-md">

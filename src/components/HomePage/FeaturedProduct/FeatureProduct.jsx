@@ -1,11 +1,9 @@
-import { fetchProductsByFilter } from "@/lib/apihelper";
+import { getProductsByFlag, safely } from "@/lib/storefront";
 import React from "react";
 import ShowFeatureProduct from "./ShowFeatureProduct";
 
 const FeatureProduct = async () => {
-  const { products } = await fetchProductsByFilter({
-    isFeatured: true,
-  });
+  const products = await safely(getProductsByFlag("isFeatured"), []);
 
   return (
     <>

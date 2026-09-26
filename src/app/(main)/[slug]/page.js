@@ -1,8 +1,9 @@
-// app/(main)/product/[slug]/page.js
+// app/(main)/[slug]/page.js — product detail page, served at /{slug}
 
 import { notFound } from "next/navigation";
 import SingleProductDetail from "@/components/website/single product/SingleProduct";
 import RelatedProducts from "@/components/others/RelatedProducts";
+import { toJsonLd } from "@/lib/jsonld";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ async function getProductDetails(slug) {
       {
         // ISR: revalidate every hour. Remove if product data changes very frequently.
         // Use cache: "no-store" only for cart/order pages, not product pages.
-        next: { revalidate: 3600 },
+        next: { revalidate: 3600, tags: ["products"] },
       }
     );
     if (!res.ok) return null;
@@ -60,20 +61,14 @@ export async function generateMetadata({ params }) {
   const { slug } = await params;
   const baseUrl = getSiteUrl();
   const metadataBase = new URL(baseUrl);
-  const canonical = new URL(`/product/${slug}`, baseUrl);
+  const canonical = new URL(`/${encodeURIComponent(slug)}`, baseUrl);
 
   const product = await getProductDetails(slug);
 
   // ── Not found ────────────────────────────────────────────────────────────
-  if (!product) {
-    return {
-      metadataBase,
-      title: "Product Not Found",
-      description: "The product you are looking for does not exist.",
-      alternates: { canonical: canonical.toString() },
-      robots: { index: false, follow: false },
-    };
-  }
+  // Calling notFound() here (not only in the page) makes the response a real
+  // HTTP 404 instead of a "soft 404" page with status 200.
+  if (!product) notFound();
 
   // ── Core fields ──────────────────────────────────────────────────────────
   const title = product.name || "Product";
@@ -136,7 +131,7 @@ export async function generateMetadata({ params }) {
       type: "website",
       url: canonical.toString(),
       siteName: SITE_NAME,
-      locale: "bn_BD",
+      locale: "en_BD",
       title: `${title} | ${SITE_NAME}`,
       description,
       images: images.slice(0, 4).map((url) => ({
@@ -144,7 +139,6 @@ export async function generateMetadata({ params }) {
         width: 1200,
         height: 630,
         alt: title,
-        type: "image/jpeg",
       })),
     },
 
@@ -168,7 +162,7 @@ export default async function ProductPage({ params }) {
   if (!product) notFound();
 
   const baseUrl = getSiteUrl();
-  const productUrl = `${baseUrl}/product/${product.slug}`;
+  const productUrl = `${baseUrl}/${encodeURIComponent(product.slug)}`;
 
   const images = (
     product.images?.length ? product.images : [{ url: product.mainImage }]
@@ -277,11 +271,11 @@ export default async function ProductPage({ params }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(productJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
       />
       <SingleProductDetail productData={product} />
       <RelatedProducts productId={product?.id} />

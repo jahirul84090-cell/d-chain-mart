@@ -125,7 +125,7 @@ const FeaturedProductCard = ({
         <Image
           src={
             product?.mainImage ||
-            "https://placehold.co/400x300/E5E7EB/A2A9B0?text=No+Image"
+            "/placeholder.png"
           }
           alt={product?.name || "Product image"}
           width={400}
@@ -386,9 +386,7 @@ const SmallProductCard = ({ product }) => {
           src={product?.mainImage}
           alt={product?.name || "Product image"}
           fill
-          objectFit="contain"
-          className="rounded-lg bg-gray-50"
-        />
+          className="object-contain rounded-lg bg-gray-50" sizes="(max-width: 640px) 50vw, 25vw" />
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

@@ -175,8 +175,7 @@ export default function UserLoanDetailsPage() {
                     src={loan.product.mainImage}
                     alt={loan.product.name}
                     fill
-                    className="object-cover"
-                  />
+                    className="object-cover" sizes="96px" />
                 </div>
               ) : (
                 <div className="flex h-28 w-28 items-center justify-center rounded-xl border bg-white">
@@ -421,8 +420,7 @@ export default function UserLoanDetailsPage() {
                           src={doc.url}
                           alt={doc.title || doc.type}
                           fill
-                          className="object-cover transition group-hover:scale-105"
-                        />
+                          className="object-cover transition group-hover:scale-105" sizes="240px" unoptimized />
                       </div>
                       <div className="p-2">
                         <p className="truncate text-xs font-semibold">

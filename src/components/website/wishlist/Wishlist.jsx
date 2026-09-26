@@ -144,8 +144,7 @@ const WishlistPage = () => {
                           src={item.image}
                           alt={item.name}
                           fill
-                          className="object-contain rounded-xl"
-                        />
+                          className="object-contain rounded-xl" sizes="(max-width: 640px) 50vw, 25vw" />
                       ) : (
                         <span className="text-sm text-gray-400">No Image</span>
                       )}

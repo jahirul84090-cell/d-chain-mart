@@ -113,7 +113,9 @@ export default function HeroSection({ sliderProducts }) {
                   src={slide.mainImage}
                   alt={slide.name}
                   fill
-                  priority
+                  // Only the first slide is visible on load; lazy-load the rest.
+                  priority={index === 0}
+                  sizes="100vw"
                   className="object-cover object-center"
                 />
               </motion.div>

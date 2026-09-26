@@ -2,14 +2,14 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(request, { params }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   try {
     const product = await prisma.product.findUnique({
       where: { slug },
       include: {
         category: {
-          select: { name: true },
+          select: { name: true, slug: true },
         },
         images: {
           select: { url: true },

@@ -100,8 +100,7 @@ const CartPage = () => {
                         src={item.image}
                         alt={item.name}
                         fill
-                        className="object-contain"
-                      />
+                        className="object-contain" sizes="96px" />
                     )}
                   </div>
 

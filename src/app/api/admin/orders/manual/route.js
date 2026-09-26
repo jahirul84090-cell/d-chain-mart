@@ -1,10 +1,11 @@
+import { revalidateTag } from "next/cache";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 import { v4 as uuidv4 } from "uuid";
 
-export async function POST(req) {
+async function handlePOST(req) {
   try {
     const authCheck = await requireAuthenticatedUser(req);
 
@@ -153,4 +154,13 @@ export async function POST(req) {
       { status: 500 }
     );
   }
+}
+
+// Refresh cached storefront data after a successful change.
+export async function POST(...args) {
+  const response = await handlePOST(...args);
+  if (response?.ok) {
+    revalidateTag("products");
+  }
+  return response;
 }

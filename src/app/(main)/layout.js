@@ -1,7 +1,8 @@
 import ClickToTop from "@/components/others/ClickTop";
-import FloatingMessenger from "@/components/others/FloatingMessenger";
 import Footer from "@/components/others/Footer";
 import EcommerceHeader from "@/components/others/Header";
+import { getCategories, safely } from "@/lib/storefront";
+import { toJsonLd } from "@/lib/jsonld";
 
 const siteName = process.env.SITE_NAME || "D Chin Mart";
 const siteUrl = (
@@ -25,10 +26,6 @@ export const metadata = {
 
   applicationName: siteName,
 
-  alternates: {
-    canonical: "/",
-  },
-
   robots: {
     index: true,
     follow: true,
@@ -45,7 +42,7 @@ export const metadata = {
     type: "website",
     url: siteUrl,
     siteName,
-    locale: "bn_BD",
+    locale: "en_BD",
     title: "D Chin Mart — Online Shopping in Bangladesh",
     description:
       "Shop top products in Bangladesh with fast delivery, secure checkout & great deals. Electronics, fashion, home goods & more.",
@@ -74,8 +71,6 @@ export const metadata = {
     apple: "/apple-touch-icon.png",
   },
 
-  manifest: "/site.webmanifest",
-
   keywords: [
     "D Chin Mart",
     "D Chin Mart Bangladesh",
@@ -89,26 +84,8 @@ export const metadata = {
   ],
 };
 
-export default function MainLayout({ children }) {
-  const orgJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "OnlineStore",
-    name: siteName,
-    url: siteUrl,
-    logo: `${siteUrl}/logo.png`,
-    image: `${siteUrl}/og-default.png`,
-    description:
-      "D Chin Mart is an online shopping platform in Bangladesh for mobiles, laptops, electronics, accessories and EMI shopping.",
-    address: {
-      "@type": "PostalAddress",
-      addressCountry: "BD",
-    },
-    areaServed: {
-      "@type": "Country",
-      name: "Bangladesh",
-    },
-    sameAs: [],
-  };
+export default async function MainLayout({ children }) {
+  const categories = await safely(getCategories(), null);
 
   const websiteJsonLd = {
     "@context": "https://schema.org",
@@ -117,7 +94,7 @@ export default function MainLayout({ children }) {
     url: siteUrl,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${siteUrl}/search?q={search_term_string}`,
+      target: `${siteUrl}/allproducts?q={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   };
@@ -126,21 +103,19 @@ export default function MainLayout({ children }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(websiteJsonLd) }}
       />
 
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-      />
-
-      <EcommerceHeader />
-<ClickToTop/>
-{/* <FloatingMessenger/> */}
-      <main className="main-content overflow-x-hidden">
-      
-          {children}
-     
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:ring-2 focus:ring-primary"
+      >
+        Skip to content
+      </a>
+      <EcommerceHeader initialCategories={categories ?? undefined} />
+      <ClickToTop />
+      <main id="main-content" className="main-content overflow-x-hidden">
+        {children}
       </main>
 
       <Footer />

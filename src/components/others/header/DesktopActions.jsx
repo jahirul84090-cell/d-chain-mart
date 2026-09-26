@@ -178,7 +178,7 @@ const WishlistDropdown = () => {
                   <Image
                     src={
                       item.mainImage ||
-                      "https://placehold.co/600x600/E5E7EB/A2A9B0?text=No+Image"
+                      "/placeholder.png"
                     }
                     alt={item.name}
                     fill
@@ -188,7 +188,7 @@ const WishlistDropdown = () => {
                 </div>
                 <div className="flex-1 min-w-0 pt-0.5">
                   <Link
-                    href={`/products/${item.slug}`}
+                    href={`/${item.slug}`}
                     className="font-medium text-sm hover:text-primary transition-colors block leading-tight truncate"
                   >
                     {item.name}
@@ -295,7 +295,7 @@ const CartDropdown = () => {
                   <Image
                     src={
                       item.image ||
-                      "https://placehold.co/600x600/E5E7EB/A2A9B0?text=No+Image"
+                      "/placeholder.png"
                     }
                     alt={item.name}
                     fill
@@ -305,7 +305,7 @@ const CartDropdown = () => {
                 </div>
                 <div className="flex-1 min-w-0 pt-0.5">
                   <Link
-                    href={`/products/${item.slug}`}
+                    href={`/${item.slug}`}
                     className="font-medium text-sm hover:text-primary transition-colors block leading-tight truncate"
                   >
                     {item.name}

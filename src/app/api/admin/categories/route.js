@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -24,7 +25,7 @@ export async function GET(request) {
   }
 }
 
-export async function POST(request) {
+async function handlePOST(request) {
   const authCheck = await requireAuthenticatedUser(request);
 
   if (authCheck) return authCheck;
@@ -68,7 +69,7 @@ export async function POST(request) {
   }
 }
 
-export async function PATCH(request) {
+async function handlePATCH(request) {
   const authCheck = await requireAuthenticatedUser(request);
 
   if (authCheck) return authCheck;
@@ -114,7 +115,7 @@ export async function PATCH(request) {
   }
 }
 
-export async function DELETE(request) {
+async function handleDELETE(request) {
   const authCheck = await requireAuthenticatedUser(request);
 
   if (authCheck) return authCheck;
@@ -136,4 +137,29 @@ export async function DELETE(request) {
       { status: 500 }
     );
   }
+}
+
+// Refresh cached storefront data after a successful change.
+export async function POST(...args) {
+  const response = await handlePOST(...args);
+  if (response?.ok) {
+    revalidateTag("categories"); revalidateTag("products");
+  }
+  return response;
+}
+
+export async function PATCH(...args) {
+  const response = await handlePATCH(...args);
+  if (response?.ok) {
+    revalidateTag("categories"); revalidateTag("products");
+  }
+  return response;
+}
+
+export async function DELETE(...args) {
+  const response = await handleDELETE(...args);
+  if (response?.ok) {
+    revalidateTag("categories"); revalidateTag("products");
+  }
+  return response;
 }

@@ -1,4 +1,5 @@
 import ContactClient from "@/components/others/ContactClient";
+import { toJsonLd } from "@/lib/jsonld";
 
 const siteName = process.env.SITE_NAME || "D Chin Mart";
 
@@ -11,21 +12,21 @@ const siteUrl = (
 
 const canonicalPath = "/contact";
 const pageUrl = `${siteUrl}${canonicalPath}`;
-const ogImage = `${siteUrl}/og-contact.png`;
+const ogImage = `${siteUrl}/og-default.png`;
 
 const supportEmail =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@dchinmart.com";
 
 const supportPhone =
-  process.env.NEXT_PUBLIC_SUPPORT_PHONE || "+8801700000000";
+  process.env.NEXT_PUBLIC_SUPPORT_PHONE || "+8801923363194";
 
 const formattedPhone =
-  process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY || "+880 1700-000000";
+  process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY || "+880 1923-363194";
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
 
-  title: `Contact Us `,
+  title: "Contact Us",
 
   description:
     "Contact D Chin Mart Bangladesh for order support, product inquiries, delivery updates, return help, EMI questions and customer service assistance.",
@@ -194,21 +195,21 @@ export default function ContactPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(contactPageJsonLd),
+          __html: toJsonLd(contactPageJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbJsonLd),
+          __html: toJsonLd(breadcrumbJsonLd),
         }}
       />
 
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(faqJsonLd),
+          __html: toJsonLd(faqJsonLd),
         }}
       />
 

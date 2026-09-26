@@ -1,11 +1,9 @@
 import React from "react";
 import ShowDealsOfDay from "./ShowDealsOfDay";
-import { fetchProductsByFilter } from "@/lib/apihelper";
+import { getProductsByFlag, safely } from "@/lib/storefront";
 
 const DealsOfDay = async () => {
-  const { products } = await fetchProductsByFilter({
-    isPopular: true,
-  });
+  const products = await safely(getProductsByFlag("isPopular"), []);
 
   return (
     <>

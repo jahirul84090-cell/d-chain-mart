@@ -464,12 +464,11 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
           <Image
             src={
               mainImage ||
-              "https://placehold.co/600x600/E5E7EB/A2A9B0?text=No+Image"
+              "/placeholder.png"
             }
             alt={name}
             fill
-            className="object-contain"
-          />
+            className="object-contain" sizes="(max-width: 768px) 100vw, 50vw" />
 
           <Button
             variant="outline"

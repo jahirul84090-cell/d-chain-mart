@@ -12,6 +12,7 @@ import NewArrivals from "@/components/HomePage/NewArrivals/NewArrivals";
 import NewArrivalsSkeleton from "@/components/HomePage/NewArrivals/NewArrivalsSkeleton";
 
 import React, { Suspense } from "react";
+import { toJsonLd } from "@/lib/jsonld";
 
 const siteName = process.env.SITE_NAME || "D Chin Mart";
 const siteUrl = (
@@ -22,8 +23,9 @@ const siteUrl = (
 ).replace(/\/+$/, "");
 
 export const metadata = {
-  title:
-    "D Chin Mart | Online Shopping for Mobiles & Electronics",
+  title: {
+    absolute: "D Chin Mart | Online Shopping for Mobiles & Electronics",
+  },
 
   description:
     "Shop mobiles, laptops, electronics, accessories and more at D Chin Mart Bangladesh. Fast delivery, secure checkout, cash on delivery and EMI facilities available.",
@@ -68,6 +70,9 @@ export const metadata = {
     "buy now pay later Bangladesh",
   ],
 };
+
+// Serve the homepage from cache and refresh it every 5 minutes.
+export const revalidate = 300;
 
 const Page = async () => {
   const faqJsonLd = {
@@ -126,12 +131,12 @@ const Page = async () => {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(faqJsonLd) }}
       />
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
       />
 
       <h1 className="sr-only">

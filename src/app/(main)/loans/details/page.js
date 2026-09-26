@@ -269,7 +269,7 @@ export default function UserLoansPage() {
                     <div className="flex items-start gap-3">
                       {loan.product?.mainImage && (
                         <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl border">
-                          <Image src={loan.product.mainImage} alt="" fill className="object-cover" />
+                          <Image src={loan.product.mainImage} alt="" fill className="object-cover" sizes="64px" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">

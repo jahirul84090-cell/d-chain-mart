@@ -1,22 +1,9 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { getCategories, safely } from "@/lib/storefront";
 
-const getTopCategories = async () => {
-  try {
-    const res = await fetch(`${process.env.BASE_URL}/api/admin/categories`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    return data.categories;
-  } catch (error) {
-    console.error("Failed to fetch categories:", error);
-    return [];
-  }
-};
+const getTopCategories = () => safely(getCategories(), []);
 
 const CategoryCard = ({ category }) => {
   return (

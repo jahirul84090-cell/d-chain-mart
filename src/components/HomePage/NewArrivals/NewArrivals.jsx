@@ -1,11 +1,9 @@
 import React from "react";
 import ShowNewArrivals from "./ShowNewArrivals";
-import { fetchProductsByFilter } from "@/lib/apihelper";
+import { getProductsByFlag, safely } from "@/lib/storefront";
 
 const NewArrivals = async () => {
-  const { products } = await fetchProductsByFilter({
-    isNewArrival: true,
-  });
+  const products = await safely(getProductsByFlag("isNewArrival"), []);
 
   return (
     <>

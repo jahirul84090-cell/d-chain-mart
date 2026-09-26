@@ -7,6 +7,7 @@ export const metadata = {
   },
   description:
     "The official admin dashboard for managing all aspects of the e-commerce store.",
+  robots: { index: false, follow: false },
 };
 
 export default function DashboardLayout({ children }) {

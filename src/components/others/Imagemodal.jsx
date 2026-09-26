@@ -93,10 +93,8 @@ const ImageModal = ({ isOpen, onClose, images, initialIndex = 0 }) => {
           <Image
             src={currentImageSrc}
             alt={`Review image ${currentIndex + 1}`}
-            layout="fill"
-            objectFit="contain"
-            className="rounded-lg"
-          />
+            fill
+            className="object-contain rounded-lg" sizes="(max-width: 768px) 100vw, 80vw" />
         )}
       </div>
 

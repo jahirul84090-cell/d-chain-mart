@@ -1,25 +1,9 @@
 import React from "react";
 import ShowNewArrivals from "../NewArrivals/ShowNewArrivals";
 import { Button } from "@/components/ui/button";
+import { getFeaturedCategoryWithProducts, safely } from "@/lib/storefront";
 
-const getCatProduct = async () => {
-  try {
-    const res = await fetch(
-      `${process.env.BASE_URL}/api/admin/categories/categoryproduct`,
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-
-    return data.category || null;
-  } catch (error) {
-    return null;
-  }
-};
+const getCatProduct = () => safely(getFeaturedCategoryWithProducts(), null);
 
 const CatProduct = async () => {
   const data = await getCatProduct();

@@ -1,9 +1,10 @@
+import { revalidateTag } from "next/cache";
 // app/api/admin/products/route.js
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function POST(request) {
+async function handlePOST(request) {
   try {
     const authCheck = await requireAuthenticatedUser(request);
 
@@ -89,7 +90,7 @@ export async function POST(request) {
   }
 }
 
-export async function PATCH(request) {
+async function handlePATCH(request) {
   try {
     const authCheck = await requireAuthenticatedUser(request);
 
@@ -170,7 +171,7 @@ export async function PATCH(request) {
   }
 }
 
-export async function DELETE(request) {
+async function handleDELETE(request) {
   try {
     const authCheck = await requireAuthenticatedUser(request);
     if (authCheck) return authCheck;
@@ -388,4 +389,29 @@ export async function GET(request) {
       { status: 500 }
     );
   }
+}
+
+// Refresh cached storefront data after a successful change.
+export async function POST(...args) {
+  const response = await handlePOST(...args);
+  if (response?.ok) {
+    revalidateTag("products");
+  }
+  return response;
+}
+
+export async function PATCH(...args) {
+  const response = await handlePATCH(...args);
+  if (response?.ok) {
+    revalidateTag("products");
+  }
+  return response;
+}
+
+export async function DELETE(...args) {
+  const response = await handleDELETE(...args);
+  if (response?.ok) {
+    revalidateTag("products");
+  }
+  return response;
 }

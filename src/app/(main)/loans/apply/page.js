@@ -308,7 +308,7 @@ function DocSlot({ slot, uploaded, onUpload, onRemove }) {
         {done && uploaded?.preview ? (
           <div className="relative">
             <div className="relative h-32 w-full overflow-hidden rounded-xl border bg-slate-100 dark:bg-slate-800">
-              <Image src={uploaded.preview} alt={slot.label} fill className="object-cover" />
+              <Image src={uploaded.preview} alt={slot.label} fill className="object-cover" sizes="160px" unoptimized />
             </div>
             <button type="button"
               onClick={() => { setErr(""); setPct(0); onRemove(slot.key); }}
@@ -634,7 +634,7 @@ export default function ApplyLoanPage() {
                   <div className="flex items-start gap-4 rounded-xl border bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 dark:border-slate-700 dark:from-slate-800/40 dark:to-slate-800/20">
                     {product.mainImage && (
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl border shadow-sm">
-                        <Image src={product.mainImage} alt={product.name} fill className="object-cover" />
+                        <Image src={product.mainImage} alt={product.name} fill className="object-cover" sizes="96px" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -683,7 +683,7 @@ export default function ApplyLoanPage() {
             <div className="space-y-4">
               {/* Product mini-bar */}
               <div className="flex items-center gap-3 rounded-xl border bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                {product.mainImage && <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border"><Image src={product.mainImage} alt="" fill className="object-cover" /></div>}
+                {product.mainImage && <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border"><Image src={product.mainImage} alt="" fill className="object-cover" sizes="44px" /></div>}
                 <div className="flex-1 min-w-0">
                   <p className="truncate text-sm font-semibold">{product.name}</p>
                   <p className="text-xs text-slate-500">Price: <span className="font-bold text-blue-600 dark:text-blue-400">{fmt(price)}</span></p>
@@ -1083,7 +1083,7 @@ export default function ApplyLoanPage() {
                   <div className="pb-4">
                     <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">Product</p>
                     <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/40">
-                      {product.mainImage && <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border"><Image src={product.mainImage} alt="" fill className="object-cover" /></div>}
+                      {product.mainImage && <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border"><Image src={product.mainImage} alt="" fill className="object-cover" sizes="48px" /></div>}
                       <div className="min-w-0"><p className="truncate text-sm font-semibold">{product.name}</p><p className="text-base font-black text-blue-600 dark:text-blue-400">{fmt(price)}</p></div>
                     </div>
                   </div>
@@ -1144,7 +1144,7 @@ export default function ApplyLoanPage() {
                         return (
                           <div key={slot.key} className="overflow-hidden rounded-xl border">
                             {doc?.preview
-                              ? <div className="relative h-20 w-full bg-slate-100 dark:bg-slate-800"><Image src={doc.preview} alt={slot.label} fill className="object-cover" /></div>
+                              ? <div className="relative h-20 w-full bg-slate-100 dark:bg-slate-800"><Image src={doc.preview} alt={slot.label} fill className="object-cover" sizes="160px" unoptimized /></div>
                               : <div className="flex h-20 items-center justify-center bg-slate-100 dark:bg-slate-800"><ImageIcon className="h-5 w-5 text-slate-300" /></div>}
                             <div className="flex items-center gap-1 px-1.5 py-1">
                               <CheckCheck className="h-2.5 w-2.5 flex-shrink-0 text-emerald-500" />
