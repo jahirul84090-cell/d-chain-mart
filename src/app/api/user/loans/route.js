@@ -15,6 +15,7 @@ import { NextResponse }   from "next/server";
 import { getCurrentUser } from "@/lib/user";
 import { prisma }         from "@/lib/prisma";
 import { f2 }             from "@/lib/loan-utils";
+import { withSignedDocuments } from "@/lib/loan-documents";
 
 export async function GET(req) {
   try {
@@ -66,7 +67,7 @@ export async function GET(req) {
       const nextDue          = (loan.installments || []).find((i) => !["PAID","WAIVED"].includes(i.status)) || null;
 
       return {
-        ...loan,
+        ...withSignedDocuments(loan),
         totalCollected,
         totalOutstanding,
         paidInstallments:  paidCount,

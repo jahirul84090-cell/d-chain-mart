@@ -23,7 +23,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
-      { error: "Failed to fetch profile: " + error.message },
+      { error: "Failed to fetch profile" },
       { status: 500 }
     );
   }
@@ -79,7 +79,7 @@ export async function PATCH(request) {
     return NextResponse.json({ user: updatedUser }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to update profile: " + error.message },
+      { error: "Failed to update profile" },
       { status: 500 }
     );
   }

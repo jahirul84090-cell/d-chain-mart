@@ -132,9 +132,11 @@ export async function POST(req) {
       file: buffer,
       fileName,
       folder: `/loans/${current.id}`,
-      useUniqueFileName: false,
+      useUniqueFileName: true,
       tags: ["loan", documentType, String(current.id)],
-      isPrivateFile: false,
+      // ID documents must never be publicly reachable; they are served
+      // through short-lived signed URLs (see src/lib/loan-documents.js).
+      isPrivateFile: true,
     });
 
     return NextResponse.json({
@@ -150,7 +152,7 @@ export async function POST(req) {
 
     return NextResponse.json(
       {
-        error: err?.message || "Internal server error.",
+        error: "Upload failed. Please try again.",
       },
       { status: 500 }
     );

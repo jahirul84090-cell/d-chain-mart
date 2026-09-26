@@ -6,7 +6,7 @@ export async function PATCH(request, { params }) {
   const authCheck = await requireAuthenticatedUser(request);
 
   if (authCheck) return authCheck;
-  const { id } = params;
+  const { id } = await params;
   try {
     const updatedReview = await prisma.review.update({
       where: { id: id },
@@ -23,7 +23,10 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { id } = params;
+  const authCheck = await requireAuthenticatedUser(request);
+
+  if (authCheck) return authCheck;
+  const { id } = await params;
 
   try {
     await prisma.reviewImage.deleteMany({

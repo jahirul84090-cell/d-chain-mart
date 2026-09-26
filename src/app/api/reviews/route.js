@@ -3,15 +3,23 @@
 import { prisma } from "@/lib/prisma";
 import ImageKit from "imagekit";
 import { NextResponse } from "next/server";
+import { requireAuthenticatedUser } from "@/lib/authCheck";
+import { getCurrentUser } from "@/lib/user";
 
 export async function POST(request) {
   try {
+    const current = await getCurrentUser();
+    if (!current) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const reviewText = formData.get("reviewText");
     const title = formData.get("title");
     const rating = parseInt(formData.get("rating"));
     const productId = formData.get("productId");
-    const userId = formData.get("userId");
+    // Always review as the signed-in user, never a client-supplied id.
+    const userId = current.id;
     const files = formData.getAll("images");
 
     // Validate input
@@ -21,10 +29,47 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-    if (!productId || !userId) {
+    if (!productId) {
       return NextResponse.json(
-        { error: "Product ID and User ID are required" },
+        { error: "Product ID is required" },
         { status: 400 }
+      );
+    }
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return NextResponse.json(
+        { error: "Rating must be between 1 and 5" },
+        { status: 400 }
+      );
+    }
+
+    // Only customers with a delivered, paid order for this product may review it.
+    const [purchase, existingReview] = await Promise.all([
+      prisma.order.findFirst({
+        where: {
+          userId,
+          status: "DELIVERED",
+          isPaid: true,
+          items: { some: { productId } },
+        },
+        select: { id: true },
+      }),
+      prisma.review.findFirst({
+        where: { productId, userId },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!purchase) {
+      return NextResponse.json(
+        { error: "You can only review products you have purchased." },
+        { status: 403 }
+      );
+    }
+    if (existingReview) {
+      return NextResponse.json(
+        { error: "You have already reviewed this product." },
+        { status: 409 }
       );
     }
 
@@ -104,18 +149,19 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error submitting review:", error);
     return NextResponse.json(
-      { error: "Failed to submit review: " + error.message },
+      { error: "Failed to submit review" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 export async function GET(request) {
+  const authCheck = await requireAuthenticatedUser(request);
+
+  if (authCheck) return authCheck;
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page")) || 1;
-  const limit = parseInt(searchParams.get("limit")) || 10;
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 10));
   const filter = searchParams.get("filter");
   const email = searchParams.get("email");
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { sendOtpEmail } from "@/lib/sendOtpEmail";
+import { newOtpFields, OTP_TTL_MS } from "@/lib/otp";
 
 export async function POST(request) {
   try {
@@ -29,21 +30,26 @@ export async function POST(request) {
       );
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    // Allow at most one new code per minute.
+    if (
+      user.otpExpiresAt &&
+      user.otpExpiresAt.getTime() - OTP_TTL_MS + 60 * 1000 > Date.now()
+    ) {
+      return NextResponse.json(
+        { error: "Please wait a minute before requesting another OTP." },
+        { status: 429 }
+      );
+    }
 
-    await sendOtpEmail({ email, name: user.name, otpCode });
+    const otp = newOtpFields();
+
+    await sendOtpEmail({ email, name: user.name, otpCode: otp.otpCode });
 
     await prisma.user.update({
       where: { email },
-      data: { otpCode, otpExpiresAt },
+      data: otp,
     });
 
-    console.log("Resend-otp API: OTP resent", {
-      email,
-      otpCode,
-      timestamp: new Date().toISOString(),
-    });
     return NextResponse.json(
       { message: "A new OTP has been sent to your email." },
       { status: 200 }
@@ -54,7 +60,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString(),
     });
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Could not send OTP. Please try again." },
       { status: 500 }
     );
   }

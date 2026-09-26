@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendOtpEmail } from "@/lib/sendOtpEmail";
+import { newOtpFields } from "@/lib/otp";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -37,11 +38,10 @@ export async function POST(request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const otp = newOtpFields();
 
     // Send OTP email first
-    await sendOtpEmail({ email, name, otpCode });
+    await sendOtpEmail({ email, name, otpCode: otp.otpCode });
 
     // Create user only after email is sent
     await prisma.user.create({
@@ -50,16 +50,10 @@ export async function POST(request) {
         name,
         password: hashedPassword,
         role: "USER",
-        otpCode,
-        otpExpiresAt,
+        ...otp,
       },
     });
 
-    console.log("Sign-up API: User created, OTP email sent", {
-      email,
-      otpCode,
-      timestamp: new Date().toISOString(),
-    });
     return NextResponse.json(
       {
         message:
@@ -74,7 +68,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString(),
     });
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Could not create account. Please try again." },
       { status: 500 }
     );
   }

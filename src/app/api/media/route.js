@@ -91,7 +91,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error uploading images:", error);
     return NextResponse.json(
-      { error: "Failed to upload images: " + error.message },
+      { error: "Failed to upload images" },
       { status: 500 }
     );
   }

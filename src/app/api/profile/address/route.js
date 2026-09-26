@@ -43,7 +43,7 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error fetching addresses:", error);
     return NextResponse.json(
-      { error: "Failed to fetch addresses: " + error.message },
+      { error: "Failed to fetch addresses" },
       { status: 500 }
     );
   }
@@ -94,7 +94,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating address:", error);
     return NextResponse.json(
-      { error: "Failed to create address: " + error.message },
+      { error: "Failed to create address" },
       { status: 500 }
     );
   }
@@ -154,7 +154,7 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("Error updating address:", error);
     return NextResponse.json(
-      { error: "Failed to update address: " + error.message },
+      { error: "Failed to update address" },
       { status: 500 }
     );
   }
@@ -193,7 +193,7 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting address:", error);
     return NextResponse.json(
-      { error: "Failed to delete address: " + error.message },
+      { error: "Failed to delete address" },
       { status: 500 }
     );
   }

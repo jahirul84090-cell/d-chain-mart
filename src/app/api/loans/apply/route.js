@@ -14,6 +14,7 @@ import {
   f2,
 } from "@/lib/loan-utils";
 import { sendLoanEmail } from "@/lib/loan-email";
+import { isOwnLoanDocumentUrl } from "@/lib/loan-documents";
 
 const ALLOWED_TENURES = [3, 6];
 const REQUIRED_DOC_TYPES = ["nid_front", "nid_back", "selfie", "nominee_photo"];
@@ -186,7 +187,7 @@ export async function POST(req) {
         );
       }
 
-      if (!doc.url || !String(doc.url).startsWith("https://")) {
+      if (!doc.url || !isOwnLoanDocumentUrl(doc.url, current.id)) {
         return NextResponse.json(
           {
             error: `Document "${doc.type}" has invalid URL. Please re-upload.`,

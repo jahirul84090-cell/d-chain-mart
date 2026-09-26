@@ -10,7 +10,7 @@ export async function GET(request) {
   if (authCheck) return authCheck;
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page")) || 1;
-  const limit = parseInt(searchParams.get("limit")) || 20;
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 20));
   const search = searchParams.get("search") || "";
 
   try {
@@ -37,13 +37,16 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error fetching images:", error);
     return NextResponse.json(
-      { error: "Failed to fetch images: " + error.message },
+      { error: "Failed to fetch images" },
       { status: 500 }
     );
   }
 }
 
 export async function POST(request) {
+  const authCheck = await requireAuthenticatedUser(request);
+
+  if (authCheck) return authCheck;
   try {
     const formData = await request.formData();
     const files = formData.getAll("files");
@@ -125,7 +128,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error uploading images:", error);
     return NextResponse.json(
-      { error: "Failed to upload images: " + error.message },
+      { error: "Failed to upload images" },
       { status: 500 }
     );
   }

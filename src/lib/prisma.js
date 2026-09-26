@@ -8,6 +8,9 @@ const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     log: ["error"], // keep logs minimal in production
+    // Cost price is internal business data; never send it to the storefront.
+    // Opt back in per query with `omit: { buyingPrice: false }`.
+    omit: { product: { buyingPrice: true } },
   });
 
 // Store prisma on global in development to avoid hot-reload issues

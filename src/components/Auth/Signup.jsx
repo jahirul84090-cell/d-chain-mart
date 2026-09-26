@@ -123,7 +123,7 @@ export default function Signup() {
     setIsGoogleLoading(true);
     try {
       // Assuming Google sign-up will eventually redirect to /dashboard
-      await signIn("google", { callbackUrl: "/dashboard" });
+      await signIn("google", { callbackUrl: "/" });
     } catch (err) {
       setError("Failed to initiate Google sign-up. Please try again.");
       setIsGoogleLoading(false);

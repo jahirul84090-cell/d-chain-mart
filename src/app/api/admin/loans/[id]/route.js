@@ -10,6 +10,7 @@ import {
   calcFlatProductPriceEmi,
   f2,
 } from "@/lib/loan-utils";
+import { withSignedDocuments } from "@/lib/loan-documents";
 
 const LOAN_INCLUDE = {
   user: {
@@ -150,7 +151,7 @@ export async function GET(req, { params }) {
     }
 
     return NextResponse.json({
-      loan: enrichLoan(loan),
+      loan: withSignedDocuments(enrichLoan(loan)),
     });
   } catch (err) {
     console.error("[GET /api/admin/loans/[id]]", err);

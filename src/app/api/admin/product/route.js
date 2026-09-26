@@ -83,7 +83,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating product:", error);
     return NextResponse.json(
-      { error: "Failed to create product: " + error.message },
+      { error: "Failed to create product" },
       { status: 500 }
     );
   }
@@ -164,7 +164,7 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("Error updating product:", error);
     return NextResponse.json(
-      { error: "Failed to update product: " + error.message },
+      { error: "Failed to update product" },
       { status: 500 }
     );
   }
@@ -234,7 +234,7 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting product:", error);
     return NextResponse.json(
-      { error: "Failed to delete product: " + error.message },
+      { error: "Failed to delete product" },
       { status: 500 }
     );
   }
@@ -311,8 +311,8 @@ export async function GET(request) {
       break;
   }
 
-  const page = parseInt(searchParams.get("page")) || 1;
-  const limit = parseInt(searchParams.get("limit")) || 20;
+  const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit")) || 20));
 
   try {
     const where = {
@@ -384,7 +384,7 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(
-      { error: "Failed to fetch products: " + error.message },
+      { error: "Failed to fetch products" },
       { status: 500 }
     );
   }

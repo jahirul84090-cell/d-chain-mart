@@ -4,53 +4,79 @@ import { NextResponse } from "next/server";
 import { authOptions } from "./auth";
 import { prisma } from "./prisma";
 
-function clearAuthCookies(response) {
-  response.cookies.set("next-auth.session-token", "", {
-    expires: new Date(0),
-    path: "/",
-  });
-  return response;
-}
-
+/**
+ * Admin guard for API route handlers.
+ * Returns a JSON error response when the caller is not a SUPER_ADMIN,
+ * otherwise sets `request.user` and returns null.
+ * Applies to every HTTP method (GET, POST, PUT, PATCH, DELETE, ...).
+ */
 export async function requireAuthenticatedUser(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || !session.user?.id) {
-      const response = NextResponse.redirect(
-        new URL(process.env.NEXT_PUBLIC_LOGIN_URL || "/auth/login", request.url)
-      );
-      return clearAuthCookies(response);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user?.id },
+      where: { id: session.user.id },
       select: { id: true, role: true },
     });
 
     if (!user) {
-      const response = NextResponse.redirect(
-        new URL(process.env.NEXT_PUBLIC_LOGIN_URL || "/auth/login", request.url)
-      );
-      return clearAuthCookies(response);
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (
-      ["POST", "PUT", "DELETE", "GET"].includes(request.method) &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      const response = NextResponse.redirect(
-        new URL(process.env.NEXT_PUBLIC_LOGIN_URL || "/auth/login", request.url)
-      );
-      return clearAuthCookies(response);
+    if (user.role !== "SUPER_ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     request.user = user;
     return null;
   } catch (error) {
+    console.error("requireAuthenticatedUser: Error", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Guard for resources that belong to a user.
+ * Returns { user, isAdmin } for any signed-in user, or { response } with a
+ * JSON error. Callers must still compare ownership against `user.id`
+ * unless `isAdmin` is true.
+ */
+export async function requireSignedInUser() {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return {
+        response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      };
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, role: true },
+    });
+
+    if (!user) {
+      return {
+        response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+      };
+    }
+
+    return { user, isAdmin: user.role === "SUPER_ADMIN" };
+  } catch (error) {
+    console.error("requireSignedInUser: Error", error);
+    return {
+      response: NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 }
+      ),
+    };
   }
 }

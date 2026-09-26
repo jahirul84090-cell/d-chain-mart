@@ -18,6 +18,12 @@ import { toast } from "react-toastify";
 import Link from "next/link";
 import Image from "next/image";
 
+// Only allow same-site relative paths, so the login page cannot be used to
+// redirect users to another website.
+function safeCallbackUrl(value) {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
 // Logo component (placed at the top of the centered card)
 const Logo = () => (
   <Link href="/" className="flex items-center justify-center gap-3 pb-4">
@@ -68,7 +74,7 @@ export default function SignInPage() {
         return;
       }
       toast.success("Login Successful!");
-      const callbackUrl = searchParams.get("callbackUrl") || "/";
+      const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
       router.push(callbackUrl);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
@@ -80,7 +86,7 @@ export default function SignInPage() {
     setError("");
     setIsGoogleLoading(true);
     try {
-      const callbackUrl = searchParams.get("callbackUrl") || "/";
+      const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
       await signIn("google", { callbackUrl: callbackUrl });
     } catch (err) {
       console.error(err);

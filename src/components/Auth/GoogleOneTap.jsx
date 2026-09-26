@@ -38,7 +38,7 @@ export default function GoogleOneTap() {
             try {
               const result = await signIn("google", {
                 idToken: response.credential, // The critical fix
-                callbackUrl: "/dashboard",
+                callbackUrl: "/",
                 redirect: true,
               });
             } catch (err) {

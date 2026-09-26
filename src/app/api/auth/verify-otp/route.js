@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { checkOtp } from "@/lib/otp";
 
 export async function POST(request) {
   try {
@@ -38,12 +39,9 @@ export async function POST(request) {
       );
     }
 
-    if (!user.otpCode || user.otpCode !== otp) {
-      return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
-    }
-
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      return NextResponse.json({ error: "OTP has expired" }, { status: 400 });
+    const result = await checkOtp(user, otp);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
     await prisma.user.update({
@@ -52,13 +50,10 @@ export async function POST(request) {
         emailVerified: true,
         otpCode: null,
         otpExpiresAt: null,
+        otpAttempts: 0,
       },
     });
 
-    console.log("Verify-otp API: Email verified", {
-      email,
-      timestamp: new Date().toISOString(),
-    });
     return NextResponse.json(
       { message: "Email verified successfully" },
       { status: 200 }

@@ -19,6 +19,7 @@ import { NextResponse }   from "next/server";
 import { getCurrentUser } from "@/lib/user";
 import { prisma }         from "@/lib/prisma";
 import { f2 }             from "@/lib/loan-utils";
+import { withSignedDocuments } from "@/lib/loan-documents";
 
 export async function GET(req, { params }) {
   try {
@@ -92,7 +93,7 @@ export async function GET(req, { params }) {
     const nextDue            = (loan.installments || []).find((i) => !["PAID","WAIVED"].includes(i.status)) || null;
 
     // Sanitize: hide adminNote from user response
-    const { adminNote: _adminNote, ...loanData } = loan;
+    const { adminNote: _adminNote, ...loanData } = withSignedDocuments(loan);
 
     return NextResponse.json({
       loan: {

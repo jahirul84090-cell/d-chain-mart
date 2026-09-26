@@ -25,7 +25,7 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error fetching delivery fees:", error);
     return NextResponse.json(
-      { error: "Failed to fetch delivery fees: " + error.message },
+      { error: "Failed to fetch delivery fees" },
       { status: 500 }
     );
   }
@@ -64,7 +64,7 @@ export async function POST(request) {
   } catch (error) {
     console.error("Error creating delivery fee:", error);
     return NextResponse.json(
-      { error: "Failed to create delivery fee: " + error.message },
+      { error: "Failed to create delivery fee" },
       { status: 500 }
     );
   }
@@ -104,7 +104,7 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("Error updating delivery fee:", error);
     return NextResponse.json(
-      { error: "Failed to update delivery fee: " + error.message },
+      { error: "Failed to update delivery fee" },
       { status: 500 }
     );
   }
@@ -131,7 +131,7 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting delivery fee:", error);
     return NextResponse.json(
-      { error: "Failed to delete delivery fee: " + error.message },
+      { error: "Failed to delete delivery fee" },
       { status: 500 }
     );
   }

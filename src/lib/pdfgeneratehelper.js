@@ -1,6 +1,16 @@
 import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
+// Customer-supplied values (names, addresses) must be escaped before they are
+// placed into the invoice HTML that headless Chrome renders.
+const esc = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 function generateInvoiceHtml(invoice) {
   const order = invoice.order;
   const subtotal = order.orderTotal - (order.deliveryFee || 0);
@@ -13,7 +23,7 @@ function generateInvoiceHtml(invoice) {
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Invoice #${invoice.invoiceNumber}</title>
+        <title>Invoice #${esc(invoice.invoiceNumber)}</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
         <style>
             body { font-family: 'Roboto', 'Noto Sans', sans-serif; margin: 0; padding: 40px; color: #333; line-height: 1.5; font-size: 14px; }
@@ -102,8 +112,8 @@ function generateInvoiceHtml(invoice) {
                 </div>
                 <div class="invoice-info">
                     <h2>INVOICE</h2>
-                    <p><strong>Invoice No:</strong> ${invoice.invoiceNumber}</p>
-                    <p><strong>Order ID:</strong> ${order.id}</p>
+                    <p><strong>Invoice No:</strong> ${esc(invoice.invoiceNumber)}</p>
+                    <p><strong>Order ID:</strong> ${esc(order.id)}</p>
                     <p><strong>Date:</strong> ${new Date(
                       order.createdAt
                     ).toLocaleDateString()}</p>
@@ -113,15 +123,13 @@ function generateInvoiceHtml(invoice) {
             <div class="details">
                 <div class="details-box">
                     <h3>BILL TO</h3>
-                    <p><strong>Name:</strong> ${order.user.name || "N/A"}</p>
-                    <p><strong>Email:</strong> ${order.user.email}</p>
+                    <p><strong>Name:</strong> ${esc(order.user.name || "N/A")}</p>
+                    <p><strong>Email:</strong> ${esc(order.user.email)}</p>
                 </div>
                 <div class="details-box">
                     <h3>SHIP TO</h3>
-                    <p>${order.shippingAddress.street}</p>
-                    <p>${order.shippingAddress.city}, ${
-    order.shippingAddress.state
-  }, ${order.shippingAddress.zipCode}</p>
+                    <p>${esc(order.shippingAddress.street)}</p>
+                    <p>${esc(order.shippingAddress.city)}, ${esc(order.shippingAddress.state)}, ${esc(order.shippingAddress.zipCode)}</p>
                 </div>
             </div>
             
@@ -139,7 +147,7 @@ function generateInvoiceHtml(invoice) {
                       .map(
                         (item) => `
                         <tr>
-                            <td>${item.product.name}</td>
+                            <td>${esc(item.product.name)}</td>
                             <td>${item.quantity}</td>
                             <td>৳${item.pricePaid.toLocaleString("en-BD")}</td>
                             <td>৳${(
@@ -197,13 +205,15 @@ export async function generatePdfBuffer(invoice) {
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
     headless: chromium.headless,
-    ignoreHTTPSErrors: true,
   });
 
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: "domcontentloaded" });
-  const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
-  await browser.close();
-
-  return pdfBuffer;
+  // Always close Chrome, even when rendering fails, so processes don't leak.
+  try {
+    const page = await browser.newPage();
+    await page.setJavaScriptEnabled(false);
+    await page.setContent(htmlContent, { waitUntil: "load" });
+    return await page.pdf({ format: "A4", printBackground: true });
+  } finally {
+    await browser.close();
+  }
 }

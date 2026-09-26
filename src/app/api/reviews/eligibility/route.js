@@ -1,15 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/user";
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get("productId");
-    const userId = searchParams.get("userId");
+    const current = await getCurrentUser();
+    if (!current) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = current.id;
 
-    if (!productId || !userId) {
+    if (!productId) {
       return NextResponse.json(
-        { error: "Product ID and User ID are required" },
+        { error: "Product ID is required" },
         { status: 400 }
       );
     }
@@ -65,10 +70,8 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error checking review eligibility:", error);
     return NextResponse.json(
-      { error: "Failed to check eligibility: " + error.message },
+      { error: "Failed to check eligibility" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

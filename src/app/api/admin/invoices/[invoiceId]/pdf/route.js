@@ -4,19 +4,37 @@ import { getInvoiceWithOrderDetails } from "@/lib/ordershelper/orderhelper";
 import { sendInvoiceEmail } from "@/lib/otpinvoice";
 import { generatePdfBuffer } from "@/lib/pdfgeneratehelper";
 
+import { requireSignedInUser } from "@/lib/authCheck";
 import { NextResponse } from "next/server";
+
+// Loads the invoice and confirms the caller is its owner or an admin.
+async function loadAuthorizedInvoice(params) {
+  const auth = await requireSignedInUser();
+  if (auth.response) return { response: auth.response };
+
+  const { invoiceId } = await params;
+  const invoice = await getInvoiceWithOrderDetails(invoiceId);
+
+  if (
+    !invoice ||
+    !invoice.order ||
+    (!auth.isAdmin && invoice.order.userId !== auth.user.id)
+  ) {
+    return {
+      response: NextResponse.json(
+        { error: "Invoice or Order not found" },
+        { status: 404 }
+      ),
+    };
+  }
+
+  return { invoice };
+}
 
 export async function GET(request, { params }) {
   try {
-    const { invoiceId } = await params;
-    const invoice = await getInvoiceWithOrderDetails(invoiceId);
-
-    if (!invoice || !invoice.order) {
-      return NextResponse.json(
-        { error: "Invoice or Order not found" },
-        { status: 404 }
-      );
-    }
+    const { invoice, response } = await loadAuthorizedInvoice(params);
+    if (response) return response;
     const pdfBuffer = await generatePdfBuffer(invoice);
 
     return new NextResponse(pdfBuffer, {
@@ -37,15 +55,8 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
-    const { invoiceId } = await params;
-    const invoice = await getInvoiceWithOrderDetails(invoiceId);
-
-    if (!invoice || !invoice.order) {
-      return NextResponse.json(
-        { error: "Invoice or Order not found" },
-        { status: 404 }
-      );
-    }
+    const { invoice, response } = await loadAuthorizedInvoice(params);
+    if (response) return response;
     const pdfBuffer = await generatePdfBuffer(invoice);
     const emailResult = await sendInvoiceEmail({
       recipientEmail: invoice.order.user.email,
@@ -63,7 +74,7 @@ export async function POST(request, { params }) {
       );
     } else {
       return NextResponse.json(
-        { error: emailResult.error || "Failed to send invoice email." },
+        { error: "Failed to send invoice email." },
         { status: 500 }
       );
     }

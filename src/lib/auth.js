@@ -9,6 +9,10 @@ if (!prisma) {
   throw new Error("Prisma client is not initialized");
 }
 
+if (!process.env.NEXTAUTH_SECRET && process.env.NODE_ENV === "production") {
+  console.error("NEXTAUTH_SECRET is not set. Sessions cannot be signed securely.");
+}
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -165,7 +169,7 @@ export const authOptions = {
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
-          select: { role: true, email: true, name: true },
+          select: { role: true, email: true, name: true, image: true },
         });
 
         if (!dbUser) {
@@ -196,8 +200,8 @@ export const authOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: process.env.NEXTAUTH_SECRET || "fallback-secret", // Ensure this is set
-  debug: true,
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === "development",
 };
 
 export default NextAuth(authOptions);

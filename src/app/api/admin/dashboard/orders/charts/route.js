@@ -51,7 +51,5 @@ export async function GET(request) {
       { error: "Failed to fetch chart data." },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

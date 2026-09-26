@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 import { getCurrentUser } from "@/lib/user";
 import { sendOrderEmail } from "@/lib/sendOrderEmail";
@@ -96,7 +96,7 @@ export async function GET(request) {
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json(
-      { error: "Failed to fetch orders: " + error.message },
+      { error: "Failed to fetch orders" },
       { status: 500 }
     );
   }
@@ -157,7 +157,7 @@ export async function PATCH(request) {
   } catch (error) {
     console.error("Error updating order:", error);
     return NextResponse.json(
-      { error: "Failed to update order: " + error.message },
+      { error: "Failed to update order" },
       { status: 500 }
     );
   }
@@ -182,11 +182,13 @@ export async function DELETE(request) {
   } catch (error) {
     console.error("Error deleting order:", error);
     return NextResponse.json(
-      { error: "Failed to delete order: " + error.message },
+      { error: "Failed to delete order" },
       { status: 500 }
     );
   }
 }
+
+class InsufficientStockError extends Error {}
 
 export async function POST(request) {
   try {
@@ -291,17 +293,27 @@ export async function POST(request) {
 
     const order = await prisma.$transaction(
       async (tx) => {
-        // Execute all product stock updates in parallel to prevent transaction timeouts.
-        const updatePromises = uniqueCartItems.map((item) =>
-          tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stockAmount: { decrement: item.quantity },
-              totalSales: { increment: item.quantity },
-            },
-          })
+        // Decrement stock only when enough is left, so concurrent orders
+        // can never oversell. Any shortfall rolls the whole order back.
+        const stockResults = await Promise.all(
+          uniqueCartItems.map((item) =>
+            tx.product.updateMany({
+              where: {
+                id: item.productId,
+                stockAmount: { gte: item.quantity },
+              },
+              data: {
+                stockAmount: { decrement: item.quantity },
+                totalSales: { increment: item.quantity },
+              },
+            })
+          )
         );
-        await Promise.all(updatePromises);
+        const soldOutIndex = stockResults.findIndex((r) => r.count === 0);
+        if (soldOutIndex !== -1) {
+          const name = uniqueCartItems[soldOutIndex].product?.name || "an item";
+          throw new InsufficientStockError(`Insufficient stock for ${name}`);
+        }
 
         // Create order
         const newOrder = await tx.order.create({
@@ -358,26 +370,34 @@ export async function POST(request) {
       },
     });
 
-    try {
-      await sendOrderEmail({
-        email: user.email,
-        subject: "Your Order Confirmation",
-        html: createCustomerOrderEmail(updatedOrder, user),
-      });
-
-      await sendOrderEmail({
-        email: process.env.ADMIN_EMAIL,
-        subject: `New Order #${updatedOrder.id} Placed`,
-        html: createAdminOrderEmail(updatedOrder, user),
-      });
-    } catch (emailError) {
-      console.error("Failed to send order emails:", emailError);
-    }
+    // Send emails after the response so checkout is not slowed down by SMTP.
+    after(async () => {
+      try {
+        await Promise.all([
+          sendOrderEmail({
+            email: user.email,
+            subject: "Your Order Confirmation",
+            html: createCustomerOrderEmail(updatedOrder, user),
+          }),
+          sendOrderEmail({
+            email: process.env.ADMIN_EMAIL,
+            subject: `New Order #${updatedOrder.id} Placed`,
+            html: createAdminOrderEmail(updatedOrder, user),
+          }),
+        ]);
+      } catch (emailError) {
+        console.error("Failed to send order emails:", emailError);
+      }
+    });
 
     return NextResponse.json({ order }, { status: 200 });
   } catch (error) {
+    if (error instanceof InsufficientStockError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    console.error("Failed to create order:", error);
     return NextResponse.json(
-      { error: `Failed to create order: ${error.message}` },
+      { error: "Failed to create order" },
       { status: 500 }
     );
   }

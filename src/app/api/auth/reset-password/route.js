@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { checkOtp } from "@/lib/otp";
 
 export async function POST(request) {
   try {
@@ -35,35 +36,13 @@ export async function POST(request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return NextResponse.json(
-        { error: "No account found with this email" },
-        { status: 404 }
-      );
-    }
-
-    if (!user.password) {
-      return NextResponse.json(
-        {
-          error: "This account uses Google sign-in and cannot reset a password",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!user.emailVerified) {
-      return NextResponse.json(
-        { error: "Email not verified. Please verify your email first." },
-        { status: 400 }
-      );
-    }
-
-    if (!user.otpCode || user.otpCode !== otp) {
+    if (!user || !user.password || !user.emailVerified) {
       return NextResponse.json({ error: "Invalid OTP" }, { status: 400 });
     }
 
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      return NextResponse.json({ error: "OTP has expired" }, { status: 400 });
+    const result = await checkOtp(user, otp);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -74,6 +53,7 @@ export async function POST(request) {
         password: hashedPassword,
         otpCode: null,
         otpExpiresAt: null,
+        otpAttempts: 0,
       },
     });
 

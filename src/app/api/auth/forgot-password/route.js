@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendOtpEmail } from "@/lib/sendOtpEmail";
 import { NextResponse } from "next/server";
+import { newOtpFields, OTP_TTL_MS } from "@/lib/otp";
 
 export async function POST(request) {
   try {
@@ -18,53 +19,48 @@ export async function POST(request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return NextResponse.json(
-        { error: "No account found with this email" },
-        { status: 404 }
-      );
-    }
 
-    if (!user.password) {
+    // Same response whether or not the account exists, so the endpoint
+    // cannot be used to discover registered emails.
+    if (!user || !user.password || !user.emailVerified) {
       return NextResponse.json(
         {
-          error: "This account uses Google sign-in and cannot reset a password",
+          message:
+            "If an account exists for this email, a reset OTP has been sent.",
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
-
-    if (!user.emailVerified) {
+    // Allow at most one new code per minute.
+    if (
+      user.otpExpiresAt &&
+      user.otpExpiresAt.getTime() - OTP_TTL_MS + 60 * 1000 > Date.now()
+    ) {
       return NextResponse.json(
-        {
-          error: "Email not verified. Please verify your email first.",
-          action: "verify",
-        },
-        { status: 400 }
+        { error: "Please wait a minute before requesting another OTP." },
+        { status: 429 }
       );
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otp = newOtpFields();
 
     await prisma.user.update({
       where: { email },
-      data: { otpCode, otpExpiresAt },
+      data: otp,
     });
 
     await sendOtpEmail({
       email,
       name: user.name || "User",
-      otpCode,
+      otpCode: otp.otpCode,
       type: "reset",
     });
 
-    console.log("Forgot-password API: Reset OTP sent", {
-      email,
-      timestamp: new Date().toISOString(),
-    });
     return NextResponse.json(
-      { message: "Password reset OTP sent successfully" },
+      {
+        message:
+          "If an account exists for this email, a reset OTP has been sent.",
+      },
       { status: 200 }
     );
   } catch (error) {

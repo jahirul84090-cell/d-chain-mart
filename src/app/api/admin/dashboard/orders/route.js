@@ -72,7 +72,5 @@ export async function GET(request) {
       { error: "Failed to fetch orders." },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

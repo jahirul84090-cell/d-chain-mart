@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuthenticatedUser } from "@/lib/authCheck";
+import { requireAuthenticatedUser, requireSignedInUser } from "@/lib/authCheck";
 
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
+    const auth = await requireSignedInUser();
+    if (auth.response) return auth.response;
+
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
     }
@@ -35,14 +38,15 @@ export async function GET(request, { params }) {
         invoice: { select: { id: true } },
       },
     });
-    if (!order) {
+    // Customers may only view their own orders.
+    if (!order || (!auth.isAdmin && order.userId !== auth.user.id)) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
     return NextResponse.json({ order }, { status: 200 });
   } catch (error) {
     console.error("Error fetching order:", error);
     return NextResponse.json(
-      { error: "Failed to fetch order: " + error.message },
+      { error: "Failed to fetch order" },
       { status: 500 }
     );
   }
