@@ -47,9 +47,11 @@ from the database at build time.
 
 ### Deploying this release
 
-This release adds a migration (`20260926000000_security_and_indexes`):
-an `otpAttempts` column, a non-unique `otpCode`, and indexes for product
-listings. `npm run build` applies it through `prisma db push`; if you deploy
+This release adds two migrations: `20260926000000_security_and_indexes`
+(an `otpAttempts` column, a non-unique `otpCode`, product listing indexes)
+and `20260926100000_order_item_variants` (an order may contain the same
+product in several sizes/colours). `npm run build` applies them through
+`prisma db push`; if you deploy
 with migrations instead, run `npx prisma migrate deploy` before starting.
 
 After deploying:
