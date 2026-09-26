@@ -1,40 +1,29 @@
 "use client";
 
-import * as React from "react";
-
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import Link from "next/link";
+import Image from "next/image";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-import { ShoppingBag } from "lucide-react";
-
+// Store brand at the top of the admin sidebar.
 export function TeamSwitcher() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <ShoppingBag className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <h2 className="font-bold text-md capitalize  ">
-                  Admin Dashboard
-                </h2>
-              </div>
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-        </DropdownMenu>
+        <SidebarMenuButton size="lg" asChild>
+          <Link href="/dashboard">
+            <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary p-1">
+              <Image src="/logo.png" alt="" width={28} height={16} className="h-auto w-full" />
+            </span>
+            <span className="grid flex-1 text-left text-sm leading-tight">
+              <span className="font-semibold">D Chin Mart</span>
+              <span className="text-xs text-muted-foreground">Store admin</span>
+            </span>
+          </Link>
+        </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
   );

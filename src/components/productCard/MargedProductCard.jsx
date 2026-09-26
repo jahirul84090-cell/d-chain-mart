@@ -10,31 +10,9 @@ import { QuickViewModal } from "./QuickViewModal";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { useSession } from "next-auth/react"; // Import NextAuth session
-import useWishlistStore from "@/lib/wishlistStore"; // DIRECT IMPORT of your store
+import { useWishlistWithSession } from "@/lib/wishlistStore";
 
-// Custom Hook to manage Wishlist State & Authentication
-const useProductWishlist = () => {
-  const { status } = useSession();
-  const store = useWishlistStore();
-
-  // Initialize flag to prevent repeated fetching
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    // Only fetch if authenticated and not yet initialized
-    if (status === "authenticated" && !initialized) {
-      store.fetchWishlist();
-      setInitialized(true);
-    }
-    // Reset initialization state if user logs out
-    if (status === "unauthenticated" && initialized) {
-      setInitialized(false);
-    }
-  }, [status, initialized, store]);
-
-  // Return the store's state and actions
-  return store;
-};
+const useProductWishlist = useWishlistWithSession;
 
 // Helper function for rating average
 const calculateAverageRating = (reviews) => {

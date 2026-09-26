@@ -43,6 +43,7 @@ import {
   TrendingUp, Banknote, Calendar, ReceiptText, Upload, X, Camera, MapPin,
   Phone, UserCheck, CheckCheck, ImageIcon, Zap, Star, ArrowRight,
 } from "lucide-react";
+import { LOAN_PLAN_RATES } from "@/lib/loan-plans";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ const STEPS = [
 const LOAN_PLANS = [
   {
     months:      3,
-    annualRate:  10,
+    annualRate:  LOAN_PLAN_RATES[3],
     label:       "3-Month Plan",
     shortLabel:  "3M",
     badge:       "Best Value",
@@ -69,12 +70,12 @@ const LOAN_PLANS = [
     textCls:     "text-emerald-600 dark:text-emerald-400",
     bgCls:       "bg-emerald-50 dark:bg-emerald-950/20",
     ringCls:     "ring-emerald-400 dark:ring-emerald-600",
-    description: "Pay quickly with 10% flat interest on the product price.",
-    pros:        ["10% flat interest", "Interest on product price", "Debt-free in 3 months"],
+    description: `Pay quickly with ${LOAN_PLAN_RATES[3]}% flat interest on the product price.`,
+    pros:        [`${LOAN_PLAN_RATES[3]}% flat interest`, "Interest on product price", "Debt-free in 3 months"],
   },
   {
     months:      6,
-    annualRate:  20,
+    annualRate:  LOAN_PLAN_RATES[6],
     label:       "6-Month Plan",
     shortLabel:  "6M",
     badge:       "Flexible",
@@ -85,8 +86,8 @@ const LOAN_PLANS = [
     textCls:     "text-blue-600 dark:text-blue-400",
     bgCls:       "bg-blue-50 dark:bg-blue-950/20",
     ringCls:     "ring-blue-400 dark:ring-blue-600",
-    description: "Lower monthly payments with 20% flat interest on the product price.",
-    pros:        ["20% flat interest", "Interest on product price", "6-month flexibility"],
+    description: `Lower monthly payments with ${LOAN_PLAN_RATES[6]}% flat interest on the product price.`,
+    pros:        [`${LOAN_PLAN_RATES[6]}% flat interest`, "Interest on product price", "6-month flexibility"],
   },
 ];
 
@@ -373,7 +374,7 @@ export default function ApplyLoanPage() {
   const [product,       setProduct]       = useState(null);
   const [productBusy,   setProductBusy]   = useState(true);
   const [settingsReady, setSettingsReady] = useState(false);
-  const [sysSettings,   setSysSettings]   = useState({ firstEmiDelayDays: 30, gracePeriodDays: 3, lateFee: 100 });
+  const [sysSettings,   setSysSettings]   = useState({ firstEmiDelayDays: 30, gracePeriodDays: 3, lateFee: 100, minDownPaymentPct: 0 });
 
   // ── Step 2: Loan configurator ──
   const [selectedPlan, setSelectedPlan] = useState(LOAN_PLANS[0]); // default 3M
@@ -399,6 +400,7 @@ export default function ApplyLoanPage() {
   // ── Derived ──
   const price      = product ? Number(product.price || 0) : 0;
   const dp         = parseFloat(downPayment) || 0;
+  const minDown    = Math.max(1, Math.ceil((price * (sysSettings.minDownPaymentPct || 0)) / 100));
   const loanAmount = Math.max(0, f2(price - dp));
   const plan       = selectedPlan;
   const loanCalc = useMemo(
@@ -429,7 +431,7 @@ export default function ApplyLoanPage() {
   // ── Effects ──
   useEffect(() => {
     fetch("/api/loans/settings").then((r) => r.json()).then((d) => {
-      if (d?.settings) setSysSettings({ firstEmiDelayDays: d.settings.firstEmiDelayDays, gracePeriodDays: d.settings.gracePeriodDays, lateFee: d.settings.lateFee });
+      if (d?.settings) setSysSettings({ firstEmiDelayDays: d.settings.firstEmiDelayDays, gracePeriodDays: d.settings.gracePeriodDays, lateFee: d.settings.lateFee, minDownPaymentPct: Number(d.settings.minDownPaymentPct) || 0 });
     }).catch(() => {}).finally(() => setSettingsReady(true));
   }, []);
 
@@ -455,6 +457,7 @@ export default function ApplyLoanPage() {
     }
     if (step === 2) {
       if (!downPayment || dp <= 0) return setError("Please enter your down payment amount."), false;
+      if (dp < minDown) return setError(`Minimum down payment is ${fmt(minDown)} (${sysSettings.minDownPaymentPct}% of the price).`), false;
       if (dp >= price) return setError("Down payment must be less than the product price."), false;
       if (loanAmount <= 0) return setError("Loan amount must be greater than zero."), false;
     }
@@ -475,7 +478,7 @@ export default function ApplyLoanPage() {
       if (missing.length) return setError(`Please upload: ${missing.join(", ")}.`), false;
     }
     return true;
-  }, [step, product, dp, price, loanAmount, downPayment, applicantName, applicantAddress, nidNumber, monthlyIncome, jobType, nomineeName, nomineeRelation, nomineePhone, nomineeAddress, docs]);
+  }, [step, product, dp, minDown, sysSettings.minDownPaymentPct, price, loanAmount, downPayment, applicantName, applicantAddress, nidNumber, monthlyIncome, jobType, nomineeName, nomineeRelation, nomineePhone, nomineeAddress, docs]);
 
   const next = () => { if (validate()) setStep((s) => s + 1); };
   const prev = () => { setError(""); setStep((s) => s - 1); };
@@ -595,7 +598,7 @@ export default function ApplyLoanPage() {
               <CreditCard className="h-3 w-3" />EMI Loan Application
             </div>
             <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Buy Now, Pay Later</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Choose 3 or 6 months · Any down payment · Quick approval</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Choose 3 or 6 months · Flexible down payment · Quick approval</p>
           </div>
 
           <StepBar current={step} />
@@ -668,7 +671,7 @@ export default function ApplyLoanPage() {
                   <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3.5 dark:border-blue-900/40 dark:bg-blue-950/20">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
                     <p className="text-xs leading-relaxed text-blue-700 dark:text-blue-300">
-                      Pay any amount as down payment — no minimum required. You'll upload NID photos and a nominee photo in step 4.
+                      Choose your down payment in the next step. You'll upload NID photos and a nominee photo in step 4.
                     </p>
                   </div>
                 </div>
@@ -748,13 +751,13 @@ export default function ApplyLoanPage() {
               </div>
 
               {/* Down payment — free input */}
-              <SectionCard icon={Banknote} iconCls="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" title="Down Payment" sub="Pay any amount — no minimum required">
+              <SectionCard icon={Banknote} iconCls="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400" title="Down Payment" sub={sysSettings.minDownPaymentPct > 0 ? `Minimum ${sysSettings.minDownPaymentPct}% of the price` : "Choose how much to pay upfront"}>
                 <div className="space-y-5">
                   <div className="space-y-3">
                     <div className="flex items-end justify-between gap-3">
                       <div>
                         <Label className="text-sm font-bold">Enter Down Payment</Label>
-                        <p className="mt-0.5 text-xs text-slate-400">Any amount from ৳1 to {fmt(price - 1)}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">From {fmt(minDown)} to {fmt(price - 1)}</p>
                       </div>
                       <div className="text-right">
                         {dp > 0 && <p className="text-xs font-semibold text-slate-400">{dpPct.toFixed(1)}% of price</p>}
@@ -768,8 +771,9 @@ export default function ApplyLoanPage() {
                         onChange={(e) => setDownPayment(e.target.value)}
                         className="h-14 pl-8 text-xl font-black tracking-tight"
                         placeholder="0"
-                        min={1}
+                        min={minDown}
                         max={price - 1}
+                        aria-label="Down payment amount"
                       />
                     </div>
 
@@ -777,7 +781,7 @@ export default function ApplyLoanPage() {
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-semibold text-slate-400">Quick select</p>
                       <div className="flex flex-wrap gap-2">
-                        {[10, 20, 30, 50, 70].map((pct) => {
+                        {[10, 20, 30, 50, 70].filter((pct) => pct >= sysSettings.minDownPaymentPct).map((pct) => {
                           const amt = Math.round(price * pct / 100);
                           const active = dp === amt;
                           return (

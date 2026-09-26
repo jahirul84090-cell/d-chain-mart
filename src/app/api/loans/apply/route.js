@@ -14,9 +14,10 @@ import {
   f2,
 } from "@/lib/loan-utils";
 import { sendLoanEmail } from "@/lib/loan-email";
+import { LOAN_PLAN_RATES, LOAN_TENURES, getActiveLoanSettings } from "@/lib/loan-plans";
 import { isOwnLoanDocumentUrl } from "@/lib/loan-documents";
 
-const ALLOWED_TENURES = [3, 6];
+const ALLOWED_TENURES = LOAN_TENURES;
 const REQUIRED_DOC_TYPES = ["nid_front", "nid_back", "selfie", "nominee_photo"];
 
 const DOC_TYPE_MAP = {
@@ -26,10 +27,7 @@ const DOC_TYPE_MAP = {
   nominee_photo: "NOMINEE_PHOTO",
 };
 
-const PLAN_INTEREST_MAP = {
-  3: 10,
-  6: 20,
-};
+const PLAN_INTEREST_MAP = LOAN_PLAN_RATES;
 
 export async function POST(req) {
   try {
@@ -224,20 +222,18 @@ export async function POST(req) {
       );
     }
 
-    const setting = await prisma.loanSetting.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const setting = await getActiveLoanSettings(prisma);
 
     const cfg = {
-      firstEmiDelayDays: setting?.firstEmiDelayDays ?? 30,
-      gracePeriodDays: setting?.gracePeriodDays ?? 3,
-      lateFee: setting?.lateFee ?? 100,
+      firstEmiDelayDays: setting.firstEmiDelayDays,
+      gracePeriodDays: setting.gracePeriodDays,
+      lateFee: setting.lateFee,
     };
 
     const dpErr = validateDownPayment(
       Number(downPayment),
-      Number(product.price)
+      Number(product.price),
+      setting.minDownPaymentPct
     );
 
     if (dpErr) {

@@ -35,6 +35,9 @@ async function readError(response, fallback) {
 // never cancel each other's server update.
 const pendingQuantityTimers = new Map();
 
+// Shared in-flight cart request, so many components loading at once make one call.
+let cartRequest = null;
+
 const useCartStore = create((set, get) => {
   const syncQuantity = async (dbItemId, newQuantity, clientItemId, previousQuantity) => {
     try {
@@ -84,6 +87,8 @@ const useCartStore = create((set, get) => {
     },
 
     initializeCart: async () => {
+      if (cartRequest) return cartRequest;
+      cartRequest = (async () => {
       set({ isInitializing: true });
       try {
         const response = await fetch("/api/cart", { cache: "no-store" });
@@ -98,7 +103,10 @@ const useCartStore = create((set, get) => {
         set({ cartId: null, cartItems: [], totalItems: 0, totalPrice: 0 });
       } finally {
         set({ isInitializing: false, hasLoaded: true });
+        cartRequest = null;
       }
+      })();
+      return cartRequest;
     },
 
     /**
@@ -245,11 +253,14 @@ export function useCartWithSession() {
   const { hasLoaded, isInitializing, initializeCart } = store;
 
   // Load the cart once per session (a failed load is not retried in a loop).
+  // Reset on sign-out so the next account never sees the previous cart.
+  const { resetSession } = store;
   useEffect(() => {
     if (status === "authenticated" && !hasLoaded && !isInitializing) {
       initializeCart();
     }
-  }, [status, hasLoaded, isInitializing, initializeCart]);
+    if (status === "unauthenticated" && hasLoaded) resetSession();
+  }, [status, hasLoaded, isInitializing, initializeCart, resetSession]);
 
   return store;
 }

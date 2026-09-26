@@ -198,7 +198,7 @@ export default function UserManager() {
   }[confirm.type];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <AdminPageHeader
         title="Customers"
         description={`${total} account${total === 1 ? "" : "s"}. ${isSuperAdmin ? "Change roles, block or remove accounts." : ""}`}

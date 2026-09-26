@@ -87,7 +87,7 @@ export function isAdminUser(currentUser) {
  *  2. Cannot be >= product price
  *  3. No minimum percentage required
  */
-export function validateDownPayment(downPayment, productPrice) {
+export function validateDownPayment(downPayment, productPrice, minPct = 0) {
   const dp = Number(downPayment);
   const pp = Number(productPrice);
 
@@ -97,6 +97,11 @@ export function validateDownPayment(downPayment, productPrice) {
 
   if (!dp || dp <= 0) {
     return "Down payment must be a positive number.";
+  }
+
+  const minimum = Math.max(1, Math.ceil((pp * Number(minPct || 0)) / 100));
+  if (dp < minimum) {
+    return `Minimum down payment is ${minPct}% of the price (৳${minimum.toLocaleString("en-BD")}).`;
   }
 
   if (dp >= pp) {

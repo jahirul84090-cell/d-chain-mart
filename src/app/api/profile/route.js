@@ -4,7 +4,10 @@ import ImageKit from "imagekit";
 import { NextResponse } from "next/server";
 import { isValidBdPhone, normalizeBdPhone } from "@/lib/address";
 
-const PROFILE_SELECT = { id: true, email: true, name: true, image: true, phoneNumber: true };
+const PROFILE_SELECT = { id: true, email: true, name: true, image: true, phoneNumber: true, password: true };
+
+// Never send the password hash; just whether one exists.
+const toProfile = ({ password, ...u }) => ({ ...u, hasPassword: !!password });
 
 // Profile photos: images only, max 2 MB.
 const IMAGE_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
@@ -26,7 +29,7 @@ export async function GET() {
     const userData = await prisma.user.findUnique({ where: { id: user.id }, select: PROFILE_SELECT });
     if (!userData) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    return NextResponse.json({ user: userData }, { status: 200 });
+    return NextResponse.json({ user: toProfile(userData) }, { status: 200 });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
@@ -78,7 +81,7 @@ export async function PATCH(request) {
       select: PROFILE_SELECT,
     });
 
-    return NextResponse.json({ user: updatedUser }, { status: 200 });
+    return NextResponse.json({ user: toProfile(updatedUser) }, { status: 200 });
   } catch (error) {
     console.error("Error updating profile:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

@@ -40,7 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/lib/useDebounce";
 import { useCartWithSession } from "@/lib/cartStore";
-import useWishlistStore from "@/lib/wishlistStore";
+import { useWishlistWithSession } from "@/lib/wishlistStore";
 import MergedProductCard from "@/components/productCard/MargedProductCard";
 
 // Max price constant — change if your products go higher
@@ -264,7 +264,7 @@ export default function AllProducts() {
   );
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const { wishlist, fetchWishlist } = useWishlistStore();
+  const { wishlist } = useWishlistWithSession();
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
   const updateUrlParams = useCallback(
@@ -310,9 +310,6 @@ export default function AllProducts() {
     [updateUrlParams]
   );
 
-  useEffect(() => {
-    fetchWishlist();
-  }, [fetchWishlist]);
 
   // Fetch categories — always unblock product fetch via finally
   useEffect(() => {

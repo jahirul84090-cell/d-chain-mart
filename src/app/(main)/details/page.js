@@ -2,6 +2,7 @@
 
 import UserDashboard from "@/components/others/UserDashboard";
 import React from "react";
+import AccountShell from "@/components/User/AccountShell";
 
 export const metadata = {
   title: "User Dashboard",
@@ -12,7 +13,9 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <UserDashboard />
+      <AccountShell>
+        <UserDashboard />
+      </AccountShell>
     </>
   );
 };

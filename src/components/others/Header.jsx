@@ -42,7 +42,6 @@ import { Separator } from "@/components/ui/separator";
 
 import { useSession } from "next-auth/react";
 
-import useWishlistStore from "@/lib/wishlistStore";
 
 import HeaderSearchComponent from "@/components/others/AutoCompleteSearch";
 
@@ -68,25 +67,8 @@ const SCROLL_LOGO = {
 
 const formatSlug = (name) => name.toLowerCase().replace(/\s/g, "-");
 
-export function useWishlistWithSession() {
-  const { status } = useSession();
-  const store = useWishlistStore();
-
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    if (status === "authenticated" && !initialized) {
-      store.fetchWishlist();
-      setInitialized(true);
-    }
-
-    if (status === "unauthenticated" && initialized) {
-      setInitialized(false);
-    }
-  }, [status, initialized, store]);
-
-  return store;
-}
+// Kept for existing imports; the logic lives in the wishlist store.
+export { useWishlistWithSession } from "@/lib/wishlistStore";
 
 const coreMenuLinks = [
   { name: "Home", href: "/" },

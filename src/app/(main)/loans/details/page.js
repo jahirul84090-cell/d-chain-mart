@@ -23,6 +23,8 @@ import {
   TrendingUp, CheckCircle2, Clock, AlertTriangle, Banknote, Calendar,
   CircleDashed, XCircle, CheckCheck, Eye, RefreshCw,
 } from "lucide-react";
+import { planLabel } from "@/lib/loan-plans";
+import AccountShell from "@/components/User/AccountShell";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +151,8 @@ export default function UserLoansPage() {
   const totalOwed = loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + l.totalOutstanding, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <AccountShell>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
       {/* ── Header ── */}
       <div className="border-b bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
@@ -247,7 +250,8 @@ export default function UserLoansPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((loan) => {
-              const plan = loan.tenureMonths === 3 ? "3-Month Plan · 10% p.a." : loan.tenureMonths === 6 ? "6-Month Plan · 20% p.a." : `${loan.tenureMonths}-Month Plan`;
+              // Show the rate stored on the loan (flat, not per year).
+              const plan = planLabel(loan.tenureMonths, loan.interestRate);
               const overdueInst = loan.overdueInstallments > 0;
 
               return (
@@ -351,5 +355,6 @@ export default function UserLoansPage() {
         )}
       </div>
     </div>
+    </AccountShell>
   );
 }

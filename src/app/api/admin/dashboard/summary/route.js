@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { subDays } from "date-fns";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 
-const prisma = new PrismaClient();
 
 export async function GET(request) {
   const authCheck = await requireAuthenticatedUser(request);
@@ -68,14 +67,15 @@ export async function GET(request) {
         // Query 2: Get the total count of all products
         prisma.product.count(),
 
-        // Query 3: Get the total count of all users
-        prisma.user.count(),
+        // Query 3: customer accounts (staff excluded)
+        prisma.user.count({ where: { role: "USER" } }),
 
         // Query 4: Get products with low stock, using the 'stockAmount' field
         // Fix 2: Correct Schema Field
         // This query now correctly uses `stockAmount` as per your schema.
         prisma.product.findMany({
           where: {
+            isActive: true,
             stockAmount: {
               lte: LOW_STOCK_THRESHOLD,
             },
@@ -86,15 +86,18 @@ export async function GET(request) {
         }),
       ]);
 
-    const totalRevenue = orders.reduce(
-      (sum, order) => sum + order.orderTotal,
-      0
-    );
+    // Revenue counts only money actually received: paid, not cancelled.
+    const earning = orders.filter((o) => o.isPaid && o.status !== "CANCELLED");
+    const totalRevenue = earning.reduce((sum, order) => sum + order.orderTotal, 0);
+    const pendingRevenue = orders
+      .filter((o) => !o.isPaid && o.status !== "CANCELLED")
+      .reduce((sum, order) => sum + order.orderTotal, 0);
     const totalOrders = orders.length;
+    const cancelledOrders = orders.filter((o) => o.status === "CANCELLED").length;
 
     // Logic to find the top-selling product by aggregating quantities
     const productSales = {};
-    orders.forEach((order) => {
+    orders.filter((o) => o.status !== "CANCELLED").forEach((order) => {
       order.items.forEach((item) => {
         const productId = item.productId;
         const quantity = item.quantity;
@@ -125,7 +128,9 @@ export async function GET(request) {
       orders,
       metrics: {
         totalRevenue,
+        pendingRevenue,
         totalOrders,
+        cancelledOrders,
         totalProducts,
         totalUsers,
       },

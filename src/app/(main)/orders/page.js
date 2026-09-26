@@ -2,6 +2,7 @@
 
 import AllOrdersPage from "@/components/others/Allorders";
 import React from "react";
+import AccountShell from "@/components/User/AccountShell";
 
 export const metadata = {
   title: "My Orders",
@@ -12,7 +13,9 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <AllOrdersPage />
+      <AccountShell>
+        <AllOrdersPage />
+      </AccountShell>
     </>
   );
 };

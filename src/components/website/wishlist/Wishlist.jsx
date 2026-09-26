@@ -20,7 +20,8 @@ const WishlistPage = () => {
   const [loadingItem, setLoadingItem] = useState(null);
 
   const wishlist = useWishlistStore((state) => state.wishlist);
-  const isLoading = useWishlistStore((state) => state.isLoading);
+  const hasLoaded = useWishlistStore((state) => state.hasLoaded);
+  const isLoading = !hasLoaded;
   const error = useWishlistStore((state) => state.error);
   const fetchWishlist = useWishlistStore((state) => state.fetchWishlist);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
@@ -33,8 +34,9 @@ const WishlistPage = () => {
 
   const { addToCart } = useCartWithSession();
 
+  // Always show fresh prices and stock when the wishlist page opens.
   useEffect(() => {
-    fetchWishlist();
+    fetchWishlist({ force: true });
   }, [fetchWishlist]);
 
   const handleAddToCart = async (item) => {
@@ -80,23 +82,24 @@ const WishlistPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      <div className="flex justify-center py-16" role="status">
+        <Loader2 className="animate-spin h-8 w-8 text-primary" aria-hidden="true" />
+        <span className="sr-only">Loading your wishlist…</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-red-500 text-lg font-medium">Error: {error}</p>
+      <div className="py-16 text-center" role="alert">
+        <p className="text-red-600 font-medium">We couldn&apos;t load your wishlist. Please refresh the page.</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-12 font-sans bg-gray-50 min-h-screen text-gray-900">
-      <div className="max-w-7xl mx-auto">
+    <div className="text-gray-900">
+      <div>
         <div className="flex justify-between items-center mb-8 sm:mb-12 flex-wrap gap-4">
           <div className="flex items-end">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
@@ -128,8 +131,8 @@ const WishlistPage = () => {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2 space-y-4">
               {wishlist.map((item) => {
                 const isOutOfStock = item.isOutOfStock || false;
                 const isItemLoading = loadingItem === item.id;
@@ -220,7 +223,7 @@ const WishlistPage = () => {
               })}
             </div>
 
-            <div className="lg:col-span-1">
+            <div className="xl:col-span-1">
               <Card className="rounded-2xl shadow-lg border border-gray-200 bg-white p-6 sm:p-8">
                 <Button
                   className="w-full h-12 sm:h-14 text-base sm:text-lg rounded-full font-semibold bg-primary hover:bg-primary/90 text-white transition-colors shadow-lg"

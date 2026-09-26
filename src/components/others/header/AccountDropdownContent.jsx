@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"; // NOTE: Assumed these UI components are here
 import {
+  LayoutDashboard,
   User,
   Loader2,
   LogOut,
@@ -122,7 +123,7 @@ const AccountDropdownContent = ({ onClose }) => {
           className="cursor-pointer"
         >
           <Package className="mr-2 h-4 w-4" />
-          <span>Dashboard</span>
+          <span>My account</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {
@@ -132,7 +133,7 @@ const AccountDropdownContent = ({ onClose }) => {
           className="cursor-pointer"
         >
           <UserCircle className="mr-2 h-4 w-4" />
-          <span>My Profile</span>
+          <span>Profile &amp; addresses</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {
@@ -142,7 +143,7 @@ const AccountDropdownContent = ({ onClose }) => {
           className="cursor-pointer"
         >
           <ListOrdered className="mr-2 h-4 w-4" />
-          <span>My Orders</span>
+          <span>My orders</span>
         </DropdownMenuItem>
 
 
@@ -155,8 +156,21 @@ const AccountDropdownContent = ({ onClose }) => {
           className="cursor-pointer"
         >
           <CreditCard className="mr-2 h-4 w-4" />
-          <span>Loan Details</span>
+          <span>EMI &amp; loans</span>
         </DropdownMenuItem>
+
+        {["ADMIN", "SUPER_ADMIN"].includes(session.user.role) && (
+          <DropdownMenuItem
+            onClick={() => {
+              router.push("/dashboard");
+              onClose && onClose();
+            }}
+            className="cursor-pointer font-medium text-primary"
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            <span>Admin panel</span>
+          </DropdownMenuItem>
+        )}
 
 
         <DropdownMenuSeparator />

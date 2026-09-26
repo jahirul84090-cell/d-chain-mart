@@ -1,471 +1,196 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileDown, Eye, EyeOff, Copy } from "lucide-react";
-import { toast } from "react-toastify";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { Download, Loader2, PackageOpen } from "lucide-react";
+import { toast } from "react-toastify";
+import { Button } from "@/components/ui/button";
+import { formatBDT, formatDate, orderNumber, ORDER_STATUS_LABEL } from "@/lib/format";
+
+export const STATUS_STYLE = {
+  PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
+  PROCESSING: "bg-sky-50 text-sky-700 ring-sky-200",
+  SHIPPED: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  DELIVERED: "bg-green-50 text-green-700 ring-green-200",
+  CANCELLED: "bg-red-50 text-red-700 ring-red-200",
+};
+
+export function OrderStatusBadge({ status }) {
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS_STYLE[status] || "bg-gray-50 text-gray-700 ring-gray-200"}`}>
+      {ORDER_STATUS_LABEL[status] || status}
+    </span>
+  );
+}
+
+export async function downloadInvoice(invoiceId, ref) {
+  const response = await fetch(`/api/admin/invoices/${invoiceId}/pdf`);
+  if (!response.ok) throw new Error("Could not download the invoice.");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `invoice-${ref}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function OrderCard({ order }) {
+  const [downloading, setDownloading] = useState(false);
+  const ref = orderNumber(order.id);
+  const isCod = order.paymentMethod?.isCashOnDelivery;
+
+  const onDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadInvoice(order.invoice.id, ref);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/70 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className="font-semibold text-gray-900">{ref}</span>
+          <span className="text-gray-500">{formatDate(order.createdAt)}</span>
+        </div>
+        <OrderStatusBadge status={order.status} />
+      </header>
+
+      <ul className="divide-y divide-gray-100 px-4 sm:px-5">
+        {order.items.map((item, i) => {
+          const snap = item.productSnapshot || {};
+          return (
+            <li key={i} className="flex items-center gap-3 py-3">
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50">
+                <Image src={snap.image || "/placeholder.png"} alt="" fill sizes="56px" className="object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                {snap.slug ? (
+                  <Link href={`/${snap.slug}`} className="line-clamp-1 text-sm font-medium text-gray-900 hover:text-primary">
+                    {snap.name}
+                  </Link>
+                ) : (
+                  <p className="line-clamp-1 text-sm font-medium text-gray-900">{snap.name}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Qty {item.quantity}
+                  {snap.selectedSize && ` · Size ${snap.selectedSize}`}
+                  {snap.selectedColor && ` · ${snap.selectedColor}`}
+                </p>
+              </div>
+              <p className="text-sm font-medium text-gray-900">{formatBDT(item.pricePaid * item.quantity)}</p>
+            </li>
+          );
+        })}
+      </ul>
+
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3 sm:px-5">
+        <div className="text-sm">
+          <p className="font-semibold text-gray-900">Total {formatBDT(order.orderTotal)}</p>
+          <p className="text-xs text-gray-500">
+            {order.paymentMethod?.name || "—"} ·{" "}
+            {order.isPaid
+              ? "Paid"
+              : order.status === "CANCELLED"
+              ? "Not charged"
+              : isCod
+              ? "Pay on delivery"
+              : "Payment being verified"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {order.invoice?.id && (
+            <Button variant="outline" size="sm" onClick={onDownload} disabled={downloading} className="gap-1.5">
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+              Invoice
+            </Button>
+          )}
+          <Link href={`/orders/confirm/${order.id}`}>
+            <Button size="sm">View details</Button>
+          </Link>
+        </div>
+      </footer>
+    </article>
+  );
+}
 
 export default function AllOrders() {
   const [orders, setOrders] = useState([]);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    pageSize: 10,
-    totalOrders: 0,
-    totalPages: 1,
-  });
-  const [loading, setLoading] = useState(true);
-  const [downloadingStates, setDownloadingStates] = useState({});
-  const [copyingStates, setCopyingStates] = useState({});
-  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ totalPages: 1, totalOrders: 0 });
   const [page, setPage] = useState(1);
-  const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `/api/orders?page=${page}&pageSize=${pagination.pageSize}`
-        );
-        if (!response.ok) {
-          throw new Error(`Failed to fetch orders: ${response.statusText}`);
-        }
-        const result = await response.json();
+    let active = true;
+    setLoading(true);
+    fetch(`/api/orders?page=${page}&pageSize=10`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Could not load your orders.");
+        return r.json();
+      })
+      .then((result) => {
+        if (!active) return;
         setOrders(result.data);
         setPagination(result.pagination);
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-        setError("Failed to load orders. Please try again.");
-        toast.error("Failed to load orders.");
-      } finally {
-        setLoading(false);
-      }
+        setError(null);
+      })
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
     };
-
-    fetchOrders();
-  }, [page, pagination.pageSize]);
-
-  const downloadInvoice = async (invoiceId) => {
-    setDownloadingStates((prev) => ({ ...prev, [invoiceId]: true }));
-    try {
-      const response = await fetch(`/api/admin/invoices/${invoiceId}/pdf`, {
-        method: "GET",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to download invoice.");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice_${invoiceId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      toast.success("Invoice downloaded successfully!");
-    } catch (error) {
-      console.error("Error downloading invoice:", error);
-      toast.error("Failed to download invoice.");
-    } finally {
-      setDownloadingStates((prev) => ({ ...prev, [invoiceId]: false }));
-    }
-  };
-
-  const copyTransactionNumber = async (transactionNumber) => {
-    setCopyingStates((prev) => ({ ...prev, [transactionNumber]: true }));
-    try {
-      await navigator.clipboard.writeText(transactionNumber);
-      toast.success(
-        `Transaction number copied: ${transactionNumber.slice(0, 8)}...`
-      );
-    } catch (error) {
-      console.error("Failed to copy transaction number:", error);
-      toast.error("Failed to copy transaction number.");
-    } finally {
-      setCopyingStates((prev) => ({ ...prev, [transactionNumber]: false }));
-    }
-  };
-
-  const toggleOrderDetails = (orderId) => {
-    setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-12 font-sans bg-gray-50 min-h-screen  flex justify-center items-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-12 font-sans bg-gray-50 min-h-screen text-gray-900 flex justify-center items-center">
-        <p className="text-red-500 font-medium">{error}</p>
-      </div>
-    );
-  }
+  }, [page]);
 
   return (
-    <TooltipProvider>
-      <div className="container mx-auto p-4 sm:p-6 lg:p-12 min-h-screen text-gray-900">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8 sm:mb-12 flex items-center">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
-                All Orders
-              </h1>
-              <p className="text-gray-600 text-base sm:text-lg">
-                A comprehensive history of all your purchases.
-              </p>
-            </div>
+    <section>
+      <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">My orders</h1>
+      <p className="mt-1 text-sm text-gray-600">
+        {pagination.totalOrders ? `${pagination.totalOrders} order${pagination.totalOrders === 1 ? "" : "s"}` : "Your order history"}
+      </p>
+
+      <div className="mt-6 space-y-4">
+        {loading ? (
+          <div className="flex justify-center py-16" role="status">
+            <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden="true" />
+            <span className="sr-only">Loading your orders…</span>
           </div>
-
-          <Card className="shadow-lg border border-gray-200 rounded-2xl bg-white mb-10">
-            <CardHeader className="p-6 sm:p-8 rounded-t-2xl flex-row justify-between items-center">
-              <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                Order History
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-0">
-              {orders.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Order ID
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Date
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Status
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Total
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Payment Method
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Payment Status
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Transaction Number
-                        </th>
-                        <th scope="col" className="relative px-6 py-3">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {orders.map((order) => (
-                        <>
-                          <tr
-                            key={order.id}
-                            className="hover:bg-gray-50 transition-colors"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {order.id.slice(0, 8)}...
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {new Date(order.createdAt).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <span
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  order.status === "DELIVERED"
-                                    ? "bg-green-100 text-green-800"
-                                    : order.status === "PENDING"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : order.status === "CANCELLED"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-gray-100 text-gray-800"
-                                }`}
-                              >
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                              ৳{" "}
-                              {order.orderTotal?.toLocaleString("en-BD") ||
-                                "0.00"}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              {order.paymentMethod?.name || "N/A"}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              <span
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  order.isPaid
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {order.isPaid ? "Paid" : "Unpaid"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                              <div className="flex items-center space-x-2">
-                                {order.transactionNumber ? (
-                                  <>
-                                    <span className="truncate max-w-[150px]">
-                                      {order.transactionNumber?.slice(0, 4)}...
-                                      {order.transactionNumber?.slice(-4)}
-                                    </span>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          onClick={() =>
-                                            copyTransactionNumber(
-                                              order.transactionNumber
-                                            )
-                                          }
-                                          variant="ghost"
-                                          size="icon"
-                                          className="text-gray-500 hover:text-primary rounded-full"
-                                          disabled={
-                                            copyingStates[
-                                              order.transactionNumber
-                                            ]
-                                          }
-                                        >
-                                          {copyingStates[
-                                            order.transactionNumber
-                                          ] ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <Copy className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Copy Transaction Number</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </>
-                                ) : (
-                                  <span>N/A</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center space-x-2 justify-end">
-                                {order.isInvoiceGenerated &&
-                                  order.invoice?.id && (
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          onClick={() =>
-                                            downloadInvoice(order.invoice.id)
-                                          }
-                                          variant="ghost"
-                                          size="icon"
-                                          className="text-gray-500 hover:text-primary rounded-full"
-                                          disabled={
-                                            downloadingStates[order.invoice.id]
-                                          }
-                                        >
-                                          {downloadingStates[
-                                            order.invoice.id
-                                          ] ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <FileDown className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Download Invoice</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  )}
-                                {order.items && order.items.length > 0 && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        onClick={() =>
-                                          toggleOrderDetails(order.id)
-                                        }
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-gray-500 hover:text-primary rounded-full"
-                                      >
-                                        {expandedOrderId === order.id ? (
-                                          <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                          <Eye className="h-4 w-4" />
-                                        )}
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>
-                                        {expandedOrderId === order.id
-                                          ? "Hide Details"
-                                          : "View Details"}
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {expandedOrderId === order.id && (
-                            <tr
-                              className="bg-gray-100"
-                              key={`details-${order.id}`}
-                            >
-                              <td colSpan="8" className="p-4">
-                                <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                                  {/* Order Items List */}
-                                  <h4 className="font-bold text-gray-800 mb-2">
-                                    Order Items
-                                  </h4>
-                                  <ul className="space-y-2">
-                                    {order.items.map((item, index) => {
-                                      const productDetails =
-                                        typeof item.productSnapshot === "string"
-                                          ? JSON.parse(item.productSnapshot)
-                                          : item.productSnapshot;
-
-                                      if (!productDetails) {
-                                        return null;
-                                      }
-
-                                      return (
-                                        <li
-                                          key={`${order.id}-${index}`}
-                                          className="flex items-center justify-between text-sm text-gray-700"
-                                        >
-                                          <span>
-                                            {productDetails.name} (x
-                                            {item.quantity})
-                                          </span>
-                                          <span className="font-semibold">
-                                            ${productDetails.price.toFixed(2)}
-                                          </span>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-
-                                  {/* Order Summary */}
-                                  <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                                    <h4 className="font-bold text-gray-800">
-                                      Order Summary
-                                    </h4>
-                                    <div className="flex justify-between text-sm text-gray-700">
-                                      <span>Total Products:</span>
-                                      <span className="font-semibold">
-                                        {order.items.length}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between text-sm text-gray-700">
-                                      <span>Total Quantity:</span>
-                                      <span className="font-semibold">
-                                        {order.items.reduce(
-                                          (total, item) =>
-                                            total + item.quantity,
-                                          0
-                                        )}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between text-sm text-gray-700">
-                                      <span>Delivery Fee:</span>
-                                      <span className="font-semibold">
-                                        ${order.deliveryFee.toFixed(2)}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between text-base font-bold text-gray-900 mt-2 pt-2 border-t border-gray-300">
-                                      <span>Order Total:</span>
-                                      <span>
-                                        ${order.orderTotal.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="py-10 text-center text-gray-500">
-                  <p className="text-lg mb-4">
-                    It looks like you haven't placed any orders yet.{" "}
-                  </p>
-                  <Link href="/allproducts">
-                    <Button className="mt-4 rounded-full bg-primary text-white font-semibold px-6">
-                      Start Shopping
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {pagination.totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2 mt-8">
-              <Button
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                variant="outline"
-                className="rounded-full"
-              >
-                Previous
-              </Button>
-              <span className="text-gray-700 font-semibold">
-                Page {page} of {pagination.totalPages}
-              </span>
-              <Button
-                onClick={() => setPage((prev) => prev + 1)}
-                disabled={page === pagination.totalPages}
-                variant="outline"
-                className="rounded-full"
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
+        ) : error ? (
+          <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>
+        ) : orders.length === 0 ? (
+          <div className="flex flex-col items-center rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center">
+            <PackageOpen className="h-10 w-10 text-gray-300" aria-hidden="true" />
+            <p className="mt-3 font-medium text-gray-900">You haven&apos;t placed any orders yet</p>
+            <Link href="/allproducts" className="mt-4">
+              <Button>Start shopping</Button>
+            </Link>
+          </div>
+        ) : (
+          orders.map((order) => <OrderCard key={order.id} order={order} />)
+        )}
       </div>
-    </TooltipProvider>
+
+      {pagination.totalPages > 1 && (
+        <nav aria-label="Order pages" className="mt-6 flex items-center justify-center gap-3 text-sm">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </Button>
+          <span>
+            Page {page} of {pagination.totalPages}
+          </span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage(page + 1)}>
+            Next
+          </Button>
+        </nav>
+      )}
+    </section>
   );
 }

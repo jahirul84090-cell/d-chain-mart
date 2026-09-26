@@ -27,6 +27,7 @@
 
 import { NextResponse }   from "next/server";
 import { getCurrentUser } from "@/lib/user";
+import { DISBURSED_STATUSES } from "@/lib/loan-plans";
 import { prisma }         from "@/lib/prisma";
 import { isAdminUser }    from "@/lib/loan-utils";
 
@@ -132,7 +133,10 @@ export async function GET(req) {
     }
 
     // ── Global financial summary ──
-    const totalDisbursed  = rawStats.reduce((a, s) => a + (s._sum.loanAmount || 0), 0);
+    // Only loans that were approved count as disbursed.
+    const totalDisbursed  = rawStats
+      .filter((s) => DISBURSED_STATUSES.includes(s.status))
+      .reduce((a, s) => a + (s._sum.loanAmount || 0), 0);
     const totalCollectedGlobal = globalPayments._sum.amount || 0;
 
     stats._global = {

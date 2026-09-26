@@ -42,6 +42,7 @@ export default function AdminUserDetailsPage() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
+  const [stats, setStats] = useState({ lifetimeValue: 0, averageOrderValue: 0 });
   const pageSize = 10;
 
   useEffect(() => {
@@ -59,7 +60,8 @@ export default function AdminUserDetailsPage() {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to fetch user details");
         }
-        const { user, totalOrders } = await response.json();
+        const { user, totalOrders, stats } = await response.json();
+        setStats(stats);
         setUser(user);
         setTotalOrders(totalOrders);
       } catch (error) {
@@ -102,9 +104,9 @@ export default function AdminUserDetailsPage() {
   };
 
   const totalPages = Math.ceil(totalOrders / pageSize);
-  const totalLTV =
-    user?.orders?.reduce((sum, order) => sum + order.orderTotal, 0) || 0;
-  const averageOrderValue = totalOrders > 0 ? totalLTV / totalOrders : 0;
+  // Calculated by the server over all paid, non-cancelled orders.
+  const totalLTV = stats.lifetimeValue;
+  const averageOrderValue = stats.averageOrderValue;
 
   if (loading) {
     return (

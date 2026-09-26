@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ImageModal from "@/components/others/Imagemodal";
 import { useCartWithSession } from "@/lib/cartStore";
-import useWishlistStore from "@/lib/wishlistStore";
+import { useWishlistWithSession } from "@/lib/wishlistStore";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 import ReviewForm from "@/components/others/ReviewFrom";
@@ -103,7 +103,7 @@ function RatingBar({ label, count, total }) {
 export default function SingleProductDetail({ productData }) {
   /* stores */
   const { cartItems, addToCart, updateCartItemQuantity } = useCartWithSession();
-  const { wishlist, toggleWishlist, fetchWishlist } = useWishlistStore();
+  const { wishlist, toggleWishlist } = useWishlistWithSession();
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
   const userId = session?.user?.id;
@@ -164,9 +164,6 @@ export default function SingleProductDetail({ productData }) {
     count: reviewsData.filter((r) => r.rating === n).length,
   }));
 
-  useEffect(() => {
-    if (isLoggedIn) fetchWishlist();
-  }, [isLoggedIn, fetchWishlist]);
 
   /* ── actions ── */
   // Returns true when the selection is complete and the item can be added.

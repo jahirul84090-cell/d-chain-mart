@@ -8,13 +8,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -56,8 +49,8 @@ export default function OrderNowPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deliveryFees, setDeliveryFees] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const activeStep = 3;
-  const { cartItems, cartId, resetCart } = useCartWithSession();
+  const { cartItems, cartId, resetCart, hasLoaded: cartLoaded } = useCartWithSession();
+  const [orderPlaced, setOrderPlaced] = useState(false);
   const router = useRouter();
 
   const handleAddressSave = (newAddress) => {
@@ -158,6 +151,7 @@ export default function OrderNowPage() {
         throw new Error(errorData.error || "Failed to place order");
       }
       const { order } = await response.json();
+      setOrderPlaced(true);
       resetCart();
       toast.success("Order placed successfully!");
       router.push(`/orders/confirm/${order.id}`);
@@ -180,6 +174,11 @@ export default function OrderNowPage() {
   );
 
   const fmtTotal = `৳${Number(totalAmount).toLocaleString("en-BD")}`;
+
+  // Progress follows what the customer has actually completed.
+  const paymentReady =
+    !!selectedMethod && (selectedMethod.isCashOnDelivery || transactionNumber.trim().length > 0);
+  const activeStep = !selectedAddressId ? 2 : !paymentReady ? 3 : 4;
 
   const renderPaymentButton = () => {
     if (!selectedMethod) {
@@ -244,6 +243,19 @@ export default function OrderNowPage() {
           Preparing your checkout…
         </p>
       </div>
+    );
+  }
+
+  if (cartLoaded && cartItems.length === 0 && !orderPlaced) {
+    return (
+      <section className="flex min-h-[60vh] flex-col items-center justify-center bg-gray-50 px-4 text-center">
+        <ShoppingCart className="h-12 w-12 text-gray-300" aria-hidden="true" />
+        <h1 className="mt-4 text-2xl font-bold text-gray-900">Your cart is empty</h1>
+        <p className="mt-2 text-gray-600">Add some products to your cart before checking out.</p>
+        <Button className="mt-6" onClick={() => router.push("/allproducts")}>
+          Browse products
+        </Button>
+      </section>
     );
   }
 
@@ -339,35 +351,51 @@ export default function OrderNowPage() {
 
             <CardContent className="px-6 py-5 space-y-3">
               {addresses.length ? (
-                <Select
-                  value={selectedAddressId}
-                  onValueChange={setSelectedAddressId}
-                >
-                  <SelectTrigger className="h-11 rounded-xl border-gray-200 text-sm text-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-0 focus:border-transparent transition-all">
-                    <SelectValue placeholder="Select a shipping address" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-gray-200 shadow-lg">
-                    {addresses.map((addr) => (
-                      <SelectItem
+                <div role="radiogroup" aria-label="Delivery address" className="space-y-2">
+                  {addresses.map((addr) => {
+                    const selected = addr.id === selectedAddressId;
+                    return (
+                      <label
                         key={addr.id}
-                        value={addr.id}
-                        className="rounded-lg py-2.5 text-sm cursor-pointer"
+                        className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors ${
+                          selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-gray-200 hover:border-gray-300"
+                        }`}
                       >
-                        <span className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                          <span className="truncate">
-                            {addr.street}, {addr.city}, {addr.country}
+                        <input
+                          type="radio"
+                          name="shipping-address"
+                          value={addr.id}
+                          checked={selected}
+                          onChange={() => setSelectedAddressId(addr.id)}
+                          className="mt-1 h-4 w-4 accent-[#2ea7f2]"
+                        />
+                        <span className="min-w-0 text-sm">
+                          <span className="block font-medium text-gray-900">
+                            {addr.street}
                             {addr.isDefault && (
-                              <span className="ml-1.5 text-[11px] font-medium text-blue-600">
+                              <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                                 Default
                               </span>
                             )}
                           </span>
+                          <span className="block text-gray-600">
+                            {[addr.state, addr.city, addr.zipCode].filter(Boolean).join(", ")}
+                          </span>
+                          {addr.phoneNumber ? (
+                            <span className="block text-gray-600">{addr.phoneNumber}</span>
+                          ) : (
+                            <a
+                              href={`/profile/address/add?id=${addr.id}`}
+                              className="block font-medium text-amber-700 underline"
+                            >
+                              Add a phone number to use this address
+                            </a>
+                          )}
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-7 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center">
                   <MapPin className="w-7 h-7 text-gray-300" />

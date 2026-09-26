@@ -2,6 +2,7 @@
 
 import WishlistPage from "@/components/website/wishlist/Wishlist";
 import React from "react";
+import AccountShell from "@/components/User/AccountShell";
 
 export const metadata = {
   title: "My Wishlist",
@@ -19,7 +20,9 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <WishlistPage />
+      <AccountShell>
+        <WishlistPage />
+      </AccountShell>
     </>
   );
 };

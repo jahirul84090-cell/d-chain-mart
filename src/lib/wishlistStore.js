@@ -1,34 +1,49 @@
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { create } from "zustand";
+
+// One shared request for everyone who needs the wishlist at the same time.
+let inflight = null;
 
 const useWishlistStore = create((set, get) => ({
   wishlist: [],
-  isLoading: true,
+  isLoading: false,
+  hasLoaded: false,
   error: null,
   isAddingAllToCart: false,
 
   setIsAddingAllToCart: (val) => set({ isAddingAllToCart: val }),
 
-  fetchWishlist: async () => {
+  // Loads the wishlist once; later calls reuse it unless `force` is set.
+  fetchWishlist: async ({ force = false } = {}) => {
+    if (inflight) return inflight;
+    if (get().hasLoaded && !force) return;
     set({ isLoading: true, error: null });
-    try {
-      const response = await fetch("/api/wishlist");
-      if (!response.ok) throw new Error("Failed to fetch wishlist.");
-      const data = await response.json();
-
-      const productsWithStockStatus = data.products.map((product) => ({
-        ...product,
-        image: product.mainImage,
-        isOutOfStock: product.stockAmount <= 0,
-      }));
-
-      set({ wishlist: productsWithStockStatus, isLoading: false });
-    } catch (error) {
-      console.error("Error fetching wishlist:", error);
-      set({ error: error.message, isLoading: false });
-    }
+    inflight = (async () => {
+      try {
+        const response = await fetch("/api/wishlist");
+        if (!response.ok) throw new Error("Failed to fetch wishlist.");
+        const data = await response.json();
+        set({
+          wishlist: data.products.map((product) => ({
+            ...product,
+            image: product.mainImage,
+            isOutOfStock: product.stockAmount <= 0,
+          })),
+          isLoading: false,
+          hasLoaded: true,
+        });
+      } catch (error) {
+        set({ error: error.message, isLoading: false, hasLoaded: true });
+      } finally {
+        inflight = null;
+      }
+    })();
+    return inflight;
   },
 
-  // Optimistic toggle; returns true once the server confirms, false on failure.
+  reset: () => set({ wishlist: [], hasLoaded: false, isLoading: false, error: null }),
+
   toggleWishlist: async (product, isCurrentlyInWishlist) => {
     const action = isCurrentlyInWishlist ? "remove" : "add";
     const method = isCurrentlyInWishlist ? "DELETE" : "PATCH";
@@ -88,5 +103,19 @@ const useWishlistStore = create((set, get) => ({
     }
   },
 }));
+
+// Loads the wishlist for signed-in users only (guests have none).
+export function useWishlistWithSession() {
+  const { status } = useSession();
+  const store = useWishlistStore();
+  const { hasLoaded, fetchWishlist, reset } = store;
+
+  useEffect(() => {
+    if (status === "authenticated" && !hasLoaded) fetchWishlist();
+    if (status === "unauthenticated" && hasLoaded) reset();
+  }, [status, hasLoaded, fetchWishlist, reset]);
+
+  return store;
+}
 
 export default useWishlistStore;

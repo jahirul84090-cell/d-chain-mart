@@ -2,6 +2,7 @@
 
 import UserProfile from "@/components/User/Profile/Profile";
 import React from "react";
+import AccountShell from "@/components/User/AccountShell";
 
 export const metadata = {
   title: "My Profile",
@@ -19,7 +20,9 @@ export const metadata = {
 const page = () => {
   return (
     <>
-      <UserProfile />
+      <AccountShell>
+        <UserProfile />
+      </AccountShell>
     </>
   );
 };

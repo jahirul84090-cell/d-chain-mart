@@ -12,14 +12,15 @@ export async function GET(request) {
 
     const userId = user.id;
 
-    const [totalOrders, pendingOrders, completedOrders, wishlist] =
+    const [totalOrders, pendingOrders, completedOrders, wishlist, activeLoans] =
       await Promise.all([
         prisma.order.count({
           where: { userId: userId },
         }),
 
         prisma.order.count({
-          where: { userId: userId, status: "PENDING" },
+          // Orders still on their way (not delivered or cancelled).
+          where: { userId, status: { in: ["PENDING", "PROCESSING", "SHIPPED"] } },
         }),
 
         prisma.order.count({
@@ -30,6 +31,10 @@ export async function GET(request) {
           where: { userId: userId },
           select: { _count: { select: { products: true } } },
         }),
+
+        prisma.loanApplication.count({
+          where: { userId, status: { in: ["PENDING", "REVIEWING", "APPROVED", "DOWN_PAYMENT_PENDING", "ACTIVE"] } },
+        }),
       ]);
 
     const dashboardData = {
@@ -37,6 +42,7 @@ export async function GET(request) {
       pendingOrders: pendingOrders,
       completedOrders: completedOrders,
       wishlistItems: wishlist?._count.products || 0,
+      activeLoans,
     };
 
     return NextResponse.json(dashboardData, { status: 200 });

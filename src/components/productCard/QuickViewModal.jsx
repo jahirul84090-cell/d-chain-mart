@@ -24,7 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useCartWithSession } from "@/lib/cartStore";
-import useWishlistStore from "@/lib/wishlistStore";
+import { useWishlistWithSession } from "@/lib/wishlistStore";
 import { useSession, signIn } from "next-auth/react";
 import { toast } from "react-toastify";
 import { parseOptions } from "@/lib/product-options";
@@ -184,7 +184,7 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
   const { data: session, status } = useSession();
   const isLoggedIn = status === "authenticated";
   const { cartItems, addToCart, updateCartItemQuantity } = useCartWithSession();
-  const { wishlist, toggleWishlist, fetchWishlist } = useWishlistStore();
+  const { wishlist, toggleWishlist } = useWishlistWithSession();
 
   const availableSizes = parseOptions(product.availableSizes);
   const availableColors = parseOptions(product.availableColors);
@@ -225,9 +225,6 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
     }
   }, [isInCart, currentCartItem?.quantity, currentCartItem?.id]);
 
-  useEffect(() => {
-    if (isLoggedIn) fetchWishlist();
-  }, [isLoggedIn, fetchWishlist]);
 
   const handleAddToCart = async () => {
     if (!isLoggedIn) {

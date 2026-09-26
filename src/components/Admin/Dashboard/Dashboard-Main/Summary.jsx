@@ -58,6 +58,7 @@ export default function Summary() {
         setDashboardData({
           summary: {
             totalRevenue: summaryData.metrics.totalRevenue,
+            pendingRevenue: summaryData.metrics.pendingRevenue || 0,
             totalOrders: summaryData.metrics.totalOrders,
             totalProducts: summaryData.metrics.totalProducts, // Changed from summaryData.summary.totalProducts
             totalUsers: summaryData.metrics.totalUsers, // Changed from summaryData.summary.totalUsers
@@ -129,13 +130,16 @@ export default function Summary() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Revenue received</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               {formatCurrency(dashboardData.summary.totalRevenue)}
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Paid orders · {formatCurrency(dashboardData.summary.pendingRevenue || 0)} awaiting payment
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -164,7 +168,7 @@ export default function Summary() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">Customers</CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

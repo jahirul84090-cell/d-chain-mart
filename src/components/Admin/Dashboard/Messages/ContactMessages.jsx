@@ -60,7 +60,7 @@ export default function ContactMessages() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       <AdminPageHeader
         title="Messages"
         description={`Messages sent from the Contact page · ${data.unread} unread`}

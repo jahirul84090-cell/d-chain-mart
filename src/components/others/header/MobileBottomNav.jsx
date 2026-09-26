@@ -27,10 +27,10 @@ import AccountDropdownContent, {
 
 const mobileNavItems = [
   { label: "Home", icon: Home, href: "/" },
-  { label: "shop", icon: Layers3, href: "/allproducts" },
+  { label: "Shop", icon: Layers3, href: "/allproducts" },
   { label: "Wishlist", icon: Heart, href: "/wishlist" },
   { label: "Cart", icon: ShoppingCart, href: "/cart" },
-  { label: "Account", icon: User, href: "/profile" },
+  { label: "Account", icon: User, href: "/details" },
 ];
 
 const MOBILE_ACTION_CLASS =

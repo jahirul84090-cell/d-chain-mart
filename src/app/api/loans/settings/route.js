@@ -1,41 +1,14 @@
-/**
- * File: app/api/loans/settings/route.js
- */
-
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { LOAN_PLAN_RATES, getActiveLoanSettings } from "@/lib/loan-plans";
 
-const DEFAULTS = {
-  minDownPaymentPct: 0,
-  defaultInterest: 10,
-  defaultTenure: 3,
-  firstEmiDelayDays: 30,
-  gracePeriodDays: 3,
-  lateFee: 100,
-  isActive: true,
-};
-
+// GET — the active loan settings plus plan rates (defaults if none saved).
 export async function GET() {
   try {
-    const setting = await prisma.loanSetting.findFirst({
-      where: { isActive: true },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({
-      settings: setting
-        ? {
-            ...DEFAULTS,
-            ...setting,
-          }
-        : DEFAULTS,
-    });
+    const settings = await getActiveLoanSettings(prisma);
+    return NextResponse.json({ settings, planRates: LOAN_PLAN_RATES });
   } catch (err) {
-    console.error("[GET /api/loans/settings]", err);
-
-    return NextResponse.json(
-      { error: "Internal server error." },
-      { status: 500 }
-    );
+    console.error("[GET loan settings]", err);
+    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
