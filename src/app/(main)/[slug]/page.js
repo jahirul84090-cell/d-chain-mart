@@ -4,6 +4,16 @@ import { notFound } from "next/navigation";
 import SingleProductDetail from "@/components/website/single product/SingleProduct";
 import RelatedProducts from "@/components/others/RelatedProducts";
 import { toJsonLd } from "@/lib/jsonld";
+import { cache } from "react";
+import { after } from "next/server";
+import { prisma } from "@/lib/prisma";
+import {
+  getDeliveryFees,
+  getProductBySlug,
+  getRelatedProducts,
+  safely,
+} from "@/lib/storefront";
+import { resolveDeliveryFee } from "@/lib/delivery-fee";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -34,25 +44,17 @@ const truncate = (text, maxLen = 155) => {
 
 // ─── Data Fetcher ────────────────────────────────────────────────────────────
 
-async function getProductDetails(slug) {
-  const baseUrl = getSiteUrl();
+// Reads the database directly through a cached query (no HTTP round trip
+// to our own API). React's cache() shares one result between
+// generateMetadata and the page within a request.
+const getProductDetails = cache(async (slug) => {
   try {
-    const res = await fetch(
-      `${baseUrl}/api/admin/product/slug/${encodeURIComponent(slug)}`,
-      {
-        // ISR: revalidate every hour. Remove if product data changes very frequently.
-        // Use cache: "no-store" only for cart/order pages, not product pages.
-        next: { revalidate: 3600, tags: ["products"] },
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.product ?? null;
+    return await getProductBySlug(slug);
   } catch (err) {
-    console.error("[product/slug] fetch error:", err);
+    console.error("[product/slug] load error:", err);
     return null;
   }
-}
+});
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
 
@@ -68,10 +70,12 @@ export async function generateMetadata({ params }) {
   // ── Not found ────────────────────────────────────────────────────────────
   // Calling notFound() here (not only in the page) makes the response a real
   // HTTP 404 instead of a "soft 404" page with status 200.
-  if (!product) notFound();
+  // Hidden (inactive) products are not for sale: return a real 404.
+  if (!product || product.isActive === false) notFound();
 
   // ── Core fields ──────────────────────────────────────────────────────────
-  const title = product.name || "Product";
+  // "<Name> Price in Bangladesh" matches how shoppers in BD search.
+  const title = `${product.name} Price in Bangladesh`;
 
   const rawDesc =
     cleanText(product.shortdescription) ||
@@ -99,7 +103,8 @@ export async function generateMetadata({ params }) {
     ),
   ];
 
-  const isIndexable = product.isActive !== false;
+  const isIndexable = true;
+  const inStock = (product.stockAmount ?? 0) > 0;
 
   return {
     metadataBase,
@@ -127,20 +132,16 @@ export async function generateMetadata({ params }) {
     },
 
     // ── Open Graph ─────────────────────────────────────────────────────────
+    // og:type "product" is rendered by the page together with the price tags.
     openGraph: {
-      type: "website",
       url: canonical.toString(),
       siteName: SITE_NAME,
       locale: "en_BD",
       title: `${title} | ${SITE_NAME}`,
       description,
-      images: images.slice(0, 4).map((url) => ({
-        url,
-        width: 1200,
-        height: 630,
-        alt: title,
-      })),
+      images: images.slice(0, 4).map((url) => ({ url, alt: product.name })),
     },
+
 
     // ── Twitter ────────────────────────────────────────────────────────────
     twitter: {
@@ -159,7 +160,14 @@ export default async function ProductPage({ params }) {
   const { slug } = await params;
 
   const product = await getProductDetails(slug);
-  if (!product) notFound();
+  if (!product || product.isActive === false) notFound();
+
+  // Count the view after the response is sent (never slows the page down).
+  after(() =>
+    prisma.product
+      .update({ where: { id: product.id }, data: { views: { increment: 1 } } })
+      .catch(() => {})
+  );
 
   const baseUrl = getSiteUrl();
   const productUrl = `${baseUrl}/${encodeURIComponent(product.slug)}`;
@@ -172,63 +180,118 @@ export default async function ProductPage({ params }) {
 
   const inStock = (product.stockAmount ?? 0) > 0;
 
-  // Price valid for 30 days from build/render time
+  // Price valid for 30 days from render time
   const priceValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
 
+  const [relatedProducts, deliveryFees] = await Promise.all([
+    safely(getRelatedProducts(product.id), []),
+    safely(getDeliveryFees(), []),
+  ]);
+
+  // Country-wide Bangladesh fee (or the site default) for shipping details.
+  const shippingFee = resolveDeliveryFee(deliveryFees, {
+    country: "Bangladesh",
+    city: "",
+  });
+
+  const approvedReviews = (product.reviews || []).filter(
+    (r) => r && Number(r.rating) >= 1
+  );
+
   // ── Product JSON-LD ───────────────────────────────────────────────────────
+  // Follows Google's Product / merchant listing guidelines.
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    "@id": productUrl,
+    "@id": `${productUrl}#product`,
     name: product.name,
-    description: truncate(cleanText(product.shortdescription), 300) || product.name,
+    description:
+      truncate(cleanText(product.shortdescription || product.description), 5000) ||
+      product.name,
     category: product.category?.name || undefined,
     image: images,
-    sku: String(product.id || product._id || ""),
+    sku: String(product.id),
+    productID: String(product.id),
     url: productUrl,
-
-    // Brand — use actual brand field if present, else site name
-    ...(product.brand || SITE_NAME
-      ? {
-          brand: {
-            "@type": "Brand",
-            name: product.brand || SITE_NAME,
-          },
-        }
-      : {}),
+    brand: { "@type": "Brand", name: product.brand || SITE_NAME },
+    ...(product.availableColors ? { color: product.availableColors } : {}),
+    ...(product.availableSizes ? { size: product.availableSizes } : {}),
 
     offers: {
       "@type": "Offer",
       "@id": `${productUrl}#offer`,
       url: productUrl,
       priceCurrency: "BDT",
-      price: String(product.price),
+      price: Number(product.price),
       priceValidUntil,
       availability: inStock
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
-      seller: {
-        "@type": "Organization",
-        name: SITE_NAME,
-        url: baseUrl,
+      seller: { "@type": "Organization", name: SITE_NAME, url: baseUrl },
+      // Show the original price when the product is on sale.
+      ...(product.oldPrice > product.price
+        ? {
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              priceType: "https://schema.org/StrikethroughPrice",
+              price: Number(product.oldPrice),
+              priceCurrency: "BDT",
+            },
+          }
+        : {}),
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: {
+          "@type": "MonetaryAmount",
+          value: shippingFee,
+          currency: "BDT",
+        },
+        shippingDestination: {
+          "@type": "DefinedRegion",
+          addressCountry: "BD",
+        },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: 2, maxValue: 5, unitCode: "DAY" },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "BD",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 7,
+        returnMethod: "https://schema.org/ReturnByMail",
       },
     },
 
-    // Aggregate rating — only include if data is valid
-    ...(product.averageRating && product.reviews?.length > 0
+    // Rating and reviews only when real, approved reviews exist.
+    ...(approvedReviews.length > 0
       ? {
           aggregateRating: {
             "@type": "AggregateRating",
-            ratingValue: String(
-              Math.min(5, Math.max(1, Number(product.averageRating)))
+            ratingValue: Number(
+              Math.min(5, Math.max(1, Number(product.averageRating) || 0)).toFixed(1)
             ),
-            reviewCount: String(product.reviews.length),
-            bestRating: "5",
-            worstRating: "1",
+            reviewCount: approvedReviews.length,
+            bestRating: 5,
+            worstRating: 1,
           },
+          review: approvedReviews.slice(0, 5).map((r) => ({
+            "@type": "Review",
+            reviewRating: {
+              "@type": "Rating",
+              ratingValue: Number(r.rating),
+              bestRating: 5,
+              worstRating: 1,
+            },
+            author: { "@type": "Person", name: r.user?.name || "Verified buyer" },
+            ...(r.createdAt ? { datePublished: String(r.createdAt).slice(0, 10) } : {}),
+            ...(r.content ? { reviewBody: truncate(cleanText(r.content), 500) } : {}),
+          })),
         }
       : {}),
   };
@@ -269,6 +332,18 @@ export default async function ProductPage({ params }) {
 
   return (
     <>
+      {/* Open Graph product tags (Facebook, WhatsApp, Pinterest). They need
+          the `property` attribute, so they are rendered here; React places
+          them in <head>. */}
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={String(product.price)} />
+      <meta property="product:price:currency" content="BDT" />
+      <meta property="product:availability" content={inStock ? "in stock" : "out of stock"} />
+      <meta property="product:condition" content="new" />
+      <meta property="product:retailer_item_id" content={String(product.id)} />
+      {product.category?.name && (
+        <meta property="product:category" content={product.category.name} />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toJsonLd(productJsonLd) }}
@@ -278,7 +353,7 @@ export default async function ProductPage({ params }) {
         dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbJsonLd) }}
       />
       <SingleProductDetail productData={product} />
-      <RelatedProducts productId={product?.id} />
+      <RelatedProducts productId={product.id} initialProducts={relatedProducts} />
     </>
   );
 }

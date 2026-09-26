@@ -382,7 +382,7 @@ export default function EcommerceHeader({ initialCategories }) {
             {/* SHIPPING */}
             <div className="hidden lg:flex items-center gap-1.5 bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
               <Truck className="h-3.5 w-3.5 shrink-0" />
-              Free Shipping Over 1Ok
+              Cash on Delivery · Nationwide
             </div>
           </div>
         </div>
@@ -489,7 +489,7 @@ export default function EcommerceHeader({ initialCategories }) {
 
                     <div className="flex items-center gap-2.5 px-3 py-3 text-xs text-primary font-semibold bg-primary/8 border border-primary/20 rounded-xl">
                       <Truck className="h-4 w-4 shrink-0" />
-                      Free Shipping on orders over $50
+                      Cash on delivery across Bangladesh
                     </div>
                   </TabsContent>
 

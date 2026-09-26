@@ -17,6 +17,7 @@ const useWishlistStore = create((set, get) => ({
 
       const productsWithStockStatus = data.products.map((product) => ({
         ...product,
+        image: product.mainImage,
         isOutOfStock: product.stockAmount <= 0,
       }));
 
@@ -27,6 +28,7 @@ const useWishlistStore = create((set, get) => ({
     }
   },
 
+  // Optimistic toggle; returns true once the server confirms, false on failure.
   toggleWishlist: async (product, isCurrentlyInWishlist) => {
     const action = isCurrentlyInWishlist ? "remove" : "add";
     const method = isCurrentlyInWishlist ? "DELETE" : "PATCH";
@@ -34,6 +36,7 @@ const useWishlistStore = create((set, get) => ({
 
     const productWithStockStatus = {
       ...product,
+      image: product.image || product.mainImage,
       isOutOfStock: product.stockAmount <= 0,
     };
 
@@ -55,10 +58,12 @@ const useWishlistStore = create((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to ${action} product from wishlist.`);
       }
+      return true;
     } catch (error) {
       console.error(`Error with ${action} operation:`, error);
       set({ wishlist: prevWishlist, error: error.message });
       setTimeout(() => set({ error: null }), 3000);
+      return false;
     }
   },
 

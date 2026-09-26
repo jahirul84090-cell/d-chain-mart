@@ -42,7 +42,7 @@ export default function PaymentMethods({
   const manualPayments = paymentMethods.filter(
     (m) => !m.isCashOnDelivery && m.accountNumber && m.isActive,
   );
-  const codPayments = paymentMethods.filter((m) => m.isCashOnDelivery);
+  const codPayments = paymentMethods.filter((m) => m.isCashOnDelivery && m.isActive);
 
   if (!paymentMethods.length) {
     return (

@@ -25,6 +25,7 @@ import { Loader2, ArrowLeft, Trash2, ImagePlus } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import ImageViewer from "../Media/ImageViewer";
+import { slugify, slugError } from "@/lib/slug";
 
 // Dynamically import ReactQuill to prevent SSR issues
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
@@ -288,7 +289,11 @@ export default function EditProduct() {
                 </Label>
                 <Input
                   id="slug"
-                  {...register("slug", { required: "Slug is required" })}
+                  {...register("slug", {
+                    required: "Slug is required",
+                    setValueAs: (v) => slugify(v),
+                    validate: (v) => slugError(slugify(v)) || true,
+                  })}
                   className="border-gray-300 focus:ring-teal-500 rounded-lg shadow-sm"
                 />
                 {errors.slug && (
@@ -308,7 +313,9 @@ export default function EditProduct() {
               </Label>
               <Textarea
                 id="shortdescription"
-                {...register("shortdescription")}
+                {...register("shortdescription", {
+                  required: "Short description is required (it is also used for Google results)",
+                })}
                 rows={3}
                 maxLength={200}
                 placeholder="A brief summary of the product (max 200 characters)"

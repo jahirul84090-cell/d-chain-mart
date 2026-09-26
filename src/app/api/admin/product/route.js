@@ -3,79 +3,35 @@ import { revalidateTag } from "next/cache";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { normalizeProductInput } from "@/lib/product-input";
 
 async function handlePOST(request) {
   try {
     const authCheck = await requireAuthenticatedUser(request);
 
     if (authCheck) return authCheck;
-    const data = await request.json();
-    const {
-      name,
-      slug,
-      description,
-      shortdescription, // New field
-      price,
-      oldPrice, // New field
-      discount, // New field
-      stockAmount,
-      availableSizes,
-      availableColors,
-      isFeatured,
-      isActive,
-      isPopular,
-      isNewArrival,
-      isSlider,
-      categoryId,
-      mainImage,
-      images,
-    } = data;
+    const body = await request.json();
+    const { data, error } = normalizeProductInput(body);
+    if (error) {
+      return NextResponse.json({ error }, { status: 400 });
+    }
 
-    if (
-      !name ||
-      !slug ||
-      !price ||
-      !shortdescription || // New validation
-      !categoryId ||
-      !mainImage
-    ) {
+    const existing = await prisma.product.findUnique({
+      where: { slug: data.slug },
+      select: { id: true },
+    });
+    if (existing) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        { error: "A product with this slug already exists. Choose another slug." },
+        { status: 409 }
       );
     }
 
-    const findSlug = await prisma.product.findFirst({ where: { slug: slug } });
-
-    if (findSlug) {
-      return NextResponse.json(
-        { error: "Try Diferrent Slug Name" },
-        { status: 400 }
-      );
-    }
-
+    const images = Array.isArray(body.images) ? body.images.filter(Boolean) : [];
     const product = await prisma.product.create({
       data: {
-        name,
-        slug,
-        description,
-        shortdescription, // New field
-        price: parseFloat(price),
-        oldPrice: oldPrice ? parseFloat(oldPrice) : null, // New field, handle optional
-        discount: discount ? parseInt(discount) : 0, // New field, handle optional
-        stockAmount: parseInt(stockAmount) || 0,
-        availableSizes,
-        availableColors,
-        isFeatured: !!isFeatured,
-        isPopular: !!isPopular,
-        isNewArrival: !!isNewArrival,
-        isSlider: !!isSlider,
-        isActive: !!isActive,
-        categoryId,
-        mainImage,
-        images: {
-          create: images ? images.map((url) => ({ url })) : [],
-        },
+        ...data,
+        images: { create: images.map((url) => ({ url })) },
       },
       include: { images: true },
     });
@@ -95,67 +51,34 @@ async function handlePATCH(request) {
     const authCheck = await requireAuthenticatedUser(request);
 
     if (authCheck) return authCheck;
-    const data = await request.json();
-    const {
-      id,
-      name,
-      slug,
-      isActive,
-      description,
-      shortdescription, // New field
-      price,
-      oldPrice, // New field
-      discount, // New field
-      stockAmount,
-      availableSizes,
-      availableColors,
-      isFeatured,
-      isPopular,
-      isNewArrival,
-      isSlider,
-      categoryId,
-      mainImage,
-      images,
-    } = data;
+    const body = await request.json();
+    if (!body.id) {
+      return NextResponse.json({ error: "Missing product ID" }, { status: 400 });
+    }
+    const { data, error } = normalizeProductInput(body);
+    if (error) {
+      return NextResponse.json({ error }, { status: 400 });
+    }
 
-    if (
-      !id ||
-      !name ||
-      !slug ||
-      !price ||
-      !shortdescription || // New validation
-      !categoryId ||
-      !mainImage
-    ) {
+    const clash = await prisma.product.findFirst({
+      where: { slug: data.slug, NOT: { id: body.id } },
+      select: { id: true },
+    });
+    if (clash) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        { error: "Another product already uses this slug. Choose another slug." },
+        { status: 409 }
       );
     }
 
+    const images = Array.isArray(body.images) ? body.images.filter(Boolean) : [];
     const product = await prisma.product.update({
-      where: { id },
+      where: { id: body.id },
       data: {
-        name,
-        slug,
-        description,
-        shortdescription, // New field
-        price: parseFloat(price),
-        oldPrice: oldPrice ? parseFloat(oldPrice) : null, // New field, handle optional
-        discount: discount ? parseInt(discount) : 0, // New field, handle optional
-        stockAmount: parseInt(stockAmount) || 0,
-        availableSizes,
-        availableColors,
-        isFeatured: !!isFeatured,
-        isPopular: !!isPopular,
-        isNewArrival: !!isNewArrival,
-        isSlider: !!isSlider,
-        isActive: !!isActive,
-        categoryId,
-        mainImage,
+        ...data,
         images: {
-          deleteMany: {}, // Clear existing images
-          create: images ? images.map((url) => ({ url })) : [],
+          deleteMany: {}, // replace the gallery with the submitted list
+          create: images.map((url) => ({ url })),
         },
       },
       include: { images: true },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { slugify, slugError } from "@/lib/slug";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,7 @@ export default function AddProduct() {
   const [mainImageViewerOpen, setMainImageViewerOpen] = useState(false);
   const [imagesViewerOpen, setImagesViewerOpen] = useState(false);
   const router = useRouter();
+  const slugEdited = useRef(false);
 
   const form = useForm({
     defaultValues: {
@@ -176,6 +178,15 @@ export default function AddProduct() {
                     <FormControl>
                       <Input
                         {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          // Keep the slug in sync until the admin edits it.
+                          if (!slugEdited.current) {
+                            form.setValue("slug", slugify(e.target.value), {
+                              shouldValidate: form.formState.isSubmitted,
+                            });
+                          }
+                        }}
                         placeholder="Product name"
                         className="border-gray-300"
                       />
@@ -187,17 +198,31 @@ export default function AddProduct() {
               <FormField
                 control={form.control}
                 name="slug"
-                rules={{ required: "Slug is required" }}
+                rules={{
+                  required: "Slug is required",
+                  validate: (value) => slugError(value) || true,
+                }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Slug</FormLabel>
+                    <FormLabel>URL slug</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
+                        onChange={(e) => {
+                          slugEdited.current = true;
+                          field.onChange(e);
+                        }}
+                        onBlur={(e) => {
+                          field.onChange(slugify(e.target.value));
+                          field.onBlur();
+                        }}
                         placeholder="product-slug"
                         className="border-gray-300"
                       />
                     </FormControl>
+                    <p className="text-xs text-gray-500">
+                      Product link: /{field.value || "product-slug"}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -205,6 +230,7 @@ export default function AddProduct() {
               <FormField
                 control={form.control}
                 name="shortdescription"
+                rules={{ required: "Short description is required (it is also used for Google results)" }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Short Description</FormLabel>

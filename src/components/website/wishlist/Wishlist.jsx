@@ -8,6 +8,13 @@ import { Trash2, ShoppingCart, Loader2 } from "lucide-react";
 import Image from "next/image";
 import useWishlistStore from "@/lib/wishlistStore";
 import { useCartWithSession } from "@/lib/cartStore";
+import { parseOptions } from "@/lib/product-options";
+import { toast } from "react-toastify";
+
+// Products with sizes/colours need the shopper to choose on the product page.
+const needsOptions = (item) =>
+  parseOptions(item.availableSizes).length > 0 ||
+  parseOptions(item.availableColors).length > 0;
 
 const WishlistPage = () => {
   const [loadingItem, setLoadingItem] = useState(null);
@@ -33,37 +40,41 @@ const WishlistPage = () => {
   const handleAddToCart = async (item) => {
     setLoadingItem(item.id);
     try {
-      await addToCart(item.id, 1, item.selectedSize, item.selectedColor);
-    } catch (error) {
-      console.error("Error adding to cart:", error);
+      await addToCart(item.id, 1, null, null);
     } finally {
       setLoadingItem(null);
     }
   };
 
+  const quickAddable = wishlist.filter(
+    (item) => !item.isOutOfStock && !needsOptions(item)
+  );
+
+  // Adds every item that needs no size/colour choice, then removes those
+  // items from the wishlist. Shows one summary message.
   const handleAddAllToCart = async () => {
-    if (wishlist.length === 0 || wishlist.every((item) => item.isOutOfStock))
-      return;
-
+    if (quickAddable.length === 0) return;
     setIsAddingAllToCart(true);
-
-    const itemsToRemove = [];
-
+    let added = 0;
     try {
-      for (const item of wishlist) {
-        if (!item.isOutOfStock) {
-          await addToCart(item.id, 1, item.selectedSize, item.selectedColor);
-          itemsToRemove.push(item);
+      for (const item of quickAddable) {
+        const ok = await addToCart(item.id, 1, null, null, { silent: true });
+        if (ok) {
+          added += 1;
+          await toggleWishlist(item, true);
         }
       }
-
-      for (const item of itemsToRemove) {
-        await toggleWishlist(item, true);
-      }
-    } catch (error) {
-      console.error("Error adding all to cart:", error);
     } finally {
       setIsAddingAllToCart(false);
+    }
+    const skipped = wishlist.length - added;
+    if (added > 0) {
+      toast.success(
+        `${added} item${added === 1 ? "" : "s"} added to cart.` +
+          (skipped > 0 ? " Items that need a size or colour stay in your wishlist." : "")
+      );
+    } else {
+      toast.error("Could not add items to your cart.");
     }
   };
 
@@ -152,7 +163,9 @@ const WishlistPage = () => {
                     <div className="flex-grow flex flex-col sm:flex-row sm:items-center w-full">
                       <div className="flex-grow mb-4 sm:mb-0">
                         <h2 className="font-semibold text-base text-gray-800 mb-1 leading-tight">
-                          {item.name}
+                          <Link href={`/${item.slug}`} className="hover:text-primary">
+                            {item.name}
+                          </Link>
                         </h2>
                         <p className="text-sm text-gray-500">
                           ৳{item.price.toLocaleString("en-BD")}
@@ -165,6 +178,7 @@ const WishlistPage = () => {
                           className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors rounded-full"
                           onClick={() => toggleWishlist(item, true)}
                           disabled={isItemLoading}
+                          aria-label={`Remove ${item.name} from wishlist`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -178,12 +192,19 @@ const WishlistPage = () => {
                           >
                             Out of Stock
                           </Button>
+                        ) : needsOptions(item) ? (
+                          <Link href={`/${item.slug}`}>
+                            <Button size="sm" variant="outline" className="h-8 rounded-full px-4 text-xs font-semibold">
+                              Choose options
+                            </Button>
+                          </Link>
                         ) : (
                           <Button
                             size="icon"
                             className="h-8 w-8 rounded-full bg-primary hover:bg-primary/90 transition-colors text-white"
                             onClick={() => handleAddToCart(item)}
                             disabled={isItemLoading}
+                            aria-label={`Add ${item.name} to cart`}
                           >
                             {isItemLoading ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -204,11 +225,7 @@ const WishlistPage = () => {
                 <Button
                   className="w-full h-12 sm:h-14 text-base sm:text-lg rounded-full font-semibold bg-primary hover:bg-primary/90 text-white transition-colors shadow-lg"
                   onClick={handleAddAllToCart}
-                  disabled={
-                    isAddingAllToCart ||
-                    wishlist.length === 0 ||
-                    wishlist.every((item) => item.isOutOfStock)
-                  }
+                  disabled={isAddingAllToCart || quickAddable.length === 0}
                 >
                   {isAddingAllToCart ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -216,11 +233,10 @@ const WishlistPage = () => {
                     "Add all to cart"
                   )}
                 </Button>
-                {wishlist.some((item) => item.isOutOfStock) && (
-                  <p className="text-center text-sm text-red-500 mt-3 font-medium">
-                    (Skipping{" "}
-                    {wishlist.filter((item) => item.isOutOfStock).length} out of
-                    stock item(s))
+                {quickAddable.length < wishlist.length && (
+                  <p className="text-center text-sm text-gray-500 mt-3">
+                    {wishlist.length - quickAddable.length} item(s) are out of
+                    stock or need a size/colour and will stay in your wishlist.
                   </p>
                 )}
               </Card>

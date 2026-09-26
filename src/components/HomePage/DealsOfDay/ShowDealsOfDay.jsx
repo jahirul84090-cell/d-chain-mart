@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
+import { parseOptions } from "@/lib/product-options";
+import { ColorOptions, SizeOptions } from "@/components/productCard/VariantSelector";
 
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,19 +45,12 @@ const FeaturedProductCard = ({
   onAdd,
   onUpdateQuantity,
 }) => {
-  const [selectedSize, setSelectedSize] = useState(
-    product?.availableSizes?.[0] || null
-  );
-  const [selectedColor, setSelectedColor] = useState(
-    product?.availableColors?.[0] || null
-  );
+  const availableSizes = parseOptions(product?.availableSizes);
+  const availableColors = parseOptions(product?.availableColors);
 
-  const availableSizes = product.availableSizes
-    ? product.availableSizes.split(",").map((s) => s.trim())
-    : [];
-  const availableColors = product.availableColors
-    ? product.availableColors.split(",").map((c) => c.trim())
-    : [];
+  // Pre-select the first option of each list.
+  const [selectedSize, setSelectedSize] = useState(availableSizes[0] || null);
+  const [selectedColor, setSelectedColor] = useState(availableColors[0] || null);
 
   const itemIdentifier = `${product?.id || "no-id"}-${
     selectedSize || "no-size"
@@ -74,12 +69,15 @@ const FeaturedProductCard = ({
 
   const handleAddToCartClick = async (e) => {
     e.stopPropagation();
+    if (!isLoggedIn) {
+      toast.info("Please log in to add to cart.");
+      return;
+    }
     setAddCart(true);
-    if (isLoggedIn) {
+    try {
       await onAdd(product.id, 1, selectedSize, selectedColor);
+    } finally {
       setAddCart(false);
-    } else {
-      toast.error("Please log in to add to cart.");
     }
   };
 
@@ -180,65 +178,19 @@ const FeaturedProductCard = ({
           </CardDescription>
 
           {/* Size and Color Selection */}
-          <div className="mt-4 flex flex-col gap-3">
-            {(availableSizes.length > 0 || availableColors.length > 0) && (
-              <div className="flex flex-col space-y-3 mt-2">
-                {availableSizes.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">
-                      Size:
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableSizes.map((size) => (
-                        <span
-                          key={size}
-                          onClick={() => setSelectedSize(size)}
-                          className={`
-                        cursor-pointer px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200
-                        ${
-                          selectedSize === size
-                            ? "bg-primary text-white shadow-lg border-primary"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }
-                      `}
-                        >
-                          {size}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {availableColors.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">
-                      Color:
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {availableColors.map((color) => (
-                        <div
-                          key={color}
-                          className="flex items-center space-x-1"
-                        >
-                          <span
-                            onClick={() => setSelectedColor(color)}
-                            className={`
-                            cursor-pointer w-6 h-6 rounded-full border-2 transition-all duration-200
-                            ${
-                              selectedColor === color
-                                ? "ring-2 ring-offset-2 ring-primary"
-                                : "hover:ring-2 hover:ring-offset-2 hover:ring-gray-300"
-                            }
-                          `}
-                            style={{ backgroundColor: color.toLowerCase() }}
-                            title={color}
-                          ></span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+            <ColorOptions
+              colors={availableColors}
+              value={selectedColor}
+              onChange={setSelectedColor}
+              size="sm"
+            />
+            <SizeOptions
+              sizes={availableSizes}
+              value={selectedSize}
+              onChange={setSelectedSize}
+              size="sm"
+            />
           </div>
         </div>
 
@@ -359,12 +311,8 @@ const SmallProductCard = ({ product }) => {
   const reviewCount = product?.reviews?.length || 0;
   const averageRating = calculateAverageRating(product?.reviews);
 
-  const availableSizes = product.availableSizes
-    ? product.availableSizes.split(",").map((s) => s.trim())
-    : [];
-  const availableColors = product.availableColors
-    ? product.availableColors.split(",").map((c) => c.trim())
-    : [];
+  const availableSizes = parseOptions(product.availableSizes);
+  const availableColors = parseOptions(product.availableColors);
 
   const cardContent = (
     <Card className="relative p-4 flex gap-4 items-center group hover:shadow-md transition-shadow duration-200">
@@ -449,51 +397,23 @@ const SmallProductCard = ({ product }) => {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3">
-          {(availableSizes.length > 0 || availableColors.length > 0) && (
-            <div className="flex flex-col space-y-3 mt-2">
-              {availableSizes.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">
-                    Size:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableSizes.map((size) => (
-                      <span
-                        key={size}
-                        className={`
-                          px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 bg-purple-600 text-white shadow-lg border-purple-600`}
-                      >
-                        {size}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {availableColors.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">
-                    Color:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableColors.map((color) => (
-                      <div key={color} className="flex items-center space-x-1">
-                        <span
-                          className={`
-                            w-6 h-6 rounded-full border-2 transition-all duration-200
-                            
-                          `}
-                          style={{ backgroundColor: color.toLowerCase() }}
-                          title={color}
-                        ></span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Compact, read-only summary of the options (chosen on the product page). */}
+        {(availableSizes.length > 0 || availableColors.length > 0) && (
+          <div className="mt-2 space-y-0.5 text-xs text-gray-500">
+            {availableSizes.length > 0 && (
+              <p>
+                <span className="font-medium text-gray-700">Sizes:</span>{" "}
+                {availableSizes.join(", ")}
+              </p>
+            )}
+            {availableColors.length > 0 && (
+              <p>
+                <span className="font-medium text-gray-700">Colors:</span>{" "}
+                {availableColors.join(", ")}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -520,7 +440,7 @@ const ShowDealsOfDay = ({ products }) => {
             Deals Of The Day
           </h2>
           <CardDescription className="text-sm text-gray-600">
-            The freshest greengrocer products are waiting for you
+            Limited-time prices on our most popular products
           </CardDescription>
         </div>
       </div>

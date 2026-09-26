@@ -2,6 +2,21 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 
+// Only the fields the wishlist UI needs.
+const wishlistProductSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  price: true,
+  oldPrice: true,
+  discount: true,
+  mainImage: true,
+  stockAmount: true,
+  availableSizes: true,
+  availableColors: true,
+  isActive: true,
+};
+
 export async function GET(request) {
   try {
     const current = await getCurrentUser();
@@ -14,7 +29,7 @@ export async function GET(request) {
     const wishlist = await prisma.wishlist.findUnique({
       where: { userId },
       include: {
-        products: true,
+        products: { where: { isActive: true }, select: wishlistProductSelect },
       },
     });
 
@@ -95,21 +110,21 @@ export async function PATCH(request) {
       );
     }
 
-    const updatedWishlist = await prisma.wishlist.upsert({
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, isActive: true },
+    });
+    if (!product || !product.isActive) {
+      return NextResponse.json({ error: "Product not found." }, { status: 404 });
+    }
+
+    await prisma.wishlist.upsert({
       where: { userId },
-      create: {
-        userId,
-        products: { connect: { id: productId } },
-      },
-      update: {
-        products: { connect: { id: productId } },
-      },
-      include: {
-        products: true,
-      },
+      create: { userId, products: { connect: { id: productId } } },
+      update: { products: { connect: { id: productId } } },
     });
 
-    return NextResponse.json(updatedWishlist);
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating or creating wishlist:", error);
     return NextResponse.json(
@@ -141,23 +156,24 @@ export async function DELETE(request) {
 
     const { productId } = body;
 
-    if (productId) {
-      const updatedWishlist = await prisma.wishlist.update({
-        where: { userId },
-        data: {
-          products: { disconnect: { id: productId } },
-        },
-        include: {
-          products: true,
-        },
-      });
-      return NextResponse.json(updatedWishlist);
-    } else {
-      const deletedWishlist = await prisma.wishlist.delete({
-        where: { userId },
-      });
-      return NextResponse.json(deletedWishlist);
+    const wishlist = await prisma.wishlist.findUnique({ where: { userId } });
+    if (!wishlist) {
+      // Nothing saved yet; removing is a no-op.
+      return NextResponse.json({ success: true });
     }
+
+    if (productId) {
+      await prisma.wishlist.update({
+        where: { userId },
+        data: { products: { disconnect: { id: productId } } },
+      });
+    } else {
+      await prisma.wishlist.update({
+        where: { userId },
+        data: { products: { set: [] } },
+      });
+    }
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting from wishlist:", error);
     return NextResponse.json(

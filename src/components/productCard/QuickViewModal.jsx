@@ -27,6 +27,8 @@ import { useCartWithSession } from "@/lib/cartStore";
 import useWishlistStore from "@/lib/wishlistStore";
 import { useSession, signIn } from "next-auth/react";
 import { toast } from "react-toastify";
+import { parseOptions } from "@/lib/product-options";
+import { ColorOptions, SizeOptions } from "./VariantSelector";
 import { useRouter, usePathname } from "next/navigation";
 
 const calculateAverageRating = (reviews) => {
@@ -37,96 +39,6 @@ const calculateAverageRating = (reviews) => {
   return parseFloat((totalRating / reviews.length).toFixed(1));
 };
 
-const SizeSelector = ({ sizes, selectedSize, setSelectedSize }) => {
-  return (
-    <div className="flex items-center space-x-3">
-      <span className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[70px]">
-        Size:
-      </span>
-      <div className="flex flex-wrap gap-2">
-        {sizes.map((size) => (
-          <Button
-            key={size}
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedSize(size)}
-            className={`h-8 w-auto min-w-[32px] text-xs font-medium border transition-colors ${
-              selectedSize === size
-                ? "border-primary bg-primary text-white hover:bg-primary/90"
-                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-          >
-            {size}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ColorSelector = ({ colors, selectedColor, setSelectedColor }) => {
-  const getBackgroundColor = (colorName) => {
-    switch (colorName.toLowerCase()) {
-      case "black":
-        return "bg-gray-900";
-      case "white":
-        return "bg-gray-100 border border-gray-400";
-      case "red":
-        return "bg-red-600";
-      case "blue":
-        return "bg-blue-600";
-      case "green":
-        return "bg-green-600";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  return (
-    <div className="flex items-center space-x-3">
-      <span className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[70px]">
-        Color:
-      </span>
-      <div className="flex flex-wrap gap-2">
-        {colors.map((color) => {
-          const isSelected = selectedColor === color;
-          const bgColorClass = getBackgroundColor(color);
-          const style = !bgColorClass.startsWith("bg-")
-            ? { backgroundColor: color }
-            : {};
-
-          return (
-            <div
-              key={color}
-              onClick={() => setSelectedColor(color)}
-              className={`w-7 h-7 rounded-full cursor-pointer p-[2px] transition-all duration-200 ${
-                isSelected
-                  ? "ring-2 ring-primary ring-offset-2"
-                  : "ring-1 ring-transparent"
-              }`}
-              title={color}
-            >
-              <div
-                className={`w-full h-full rounded-full ${bgColorClass} flex items-center justify-center`}
-                style={style}
-              >
-                {isSelected && (
-                  <Check
-                    className={`w-4 h-4 ${
-                      color.toLowerCase() === "white"
-                        ? "text-gray-800"
-                        : "text-white"
-                    }`}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 const QuantitySelector = ({
   stockAmount,
@@ -274,18 +186,8 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
   const { cartItems, addToCart, updateCartItemQuantity } = useCartWithSession();
   const { wishlist, toggleWishlist, fetchWishlist } = useWishlistStore();
 
-  const availableSizes = product.availableSizes
-    ? product.availableSizes
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
-  const availableColors = product.availableColors
-    ? product.availableColors
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean)
-    : [];
+  const availableSizes = parseOptions(product.availableSizes);
+  const availableColors = parseOptions(product.availableColors);
 
   const [selectedColor, setSelectedColor] = useState(
     availableColors[0] || null
@@ -351,8 +253,6 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
     setIsAdding(true);
     try {
       await addToCart(product.id, localQuantity, selectedSize, selectedColor);
-    } catch (err) {
-      toast.error("Failed to add to cart.");
     } finally {
       setIsAdding(false);
     }
@@ -376,10 +276,13 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
       signIn(undefined, { callbackUrl: pathname });
       return;
     }
-    toggleWishlist(product, isWishlisted);
-    toast.success(
-      isWishlisted ? "Item removed from wishlist." : "Item added to wishlist!"
-    );
+    toggleWishlist(product, isWishlisted).then((ok) => {
+      if (ok) {
+        toast.success(isWishlisted ? "Item removed from wishlist." : "Item added to wishlist!");
+      } else {
+        toast.error("Could not update your wishlist. Please try again.");
+      }
+    });
   };
 
   const getQuantitySetter = () => {
@@ -430,15 +333,9 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
 
     if (!isInCart) {
       setIsAdding(true);
-      try {
-        await addToCart(product.id, localQuantity, selectedSize, selectedColor);
-      } catch (err) {
-        toast.error("Failed to add to cart for Buy Now.");
-        setIsAdding(false);
-        return;
-      } finally {
-        setIsAdding(false);
-      }
+      const ok = await addToCart(product.id, localQuantity, selectedSize, selectedColor, { silent: true });
+      setIsAdding(false);
+      if (!ok) return; // the error toast was already shown by the cart
     }
 
     toast.info("Redirecting to checkout...");
@@ -558,20 +455,18 @@ const QuickViewContent = ({ product, setIsDialogOpen }) => {
           {!isSoldOut ? (
             <>
               <div className="space-y-3">
-                {availableColors.length > 0 && (
-                  <ColorSelector
-                    colors={availableColors}
-                    selectedColor={selectedColor}
-                    setSelectedColor={setSelectedColor}
-                  />
-                )}
-                {availableSizes.length > 0 && (
-                  <SizeSelector
-                    sizes={availableSizes}
-                    selectedSize={selectedSize}
-                    setSelectedSize={setSelectedSize}
-                  />
-                )}
+                <ColorOptions
+                  colors={availableColors}
+                  value={selectedColor}
+                  onChange={setSelectedColor}
+                  size="sm"
+                />
+                <SizeOptions
+                  sizes={availableSizes}
+                  value={selectedSize}
+                  onChange={setSelectedSize}
+                  size="sm"
+                />
 
                 <div className="flex items-center py-1">
                   <span className="text-base font-semibold text-gray-700 dark:text-gray-300 min-w-[70px]">

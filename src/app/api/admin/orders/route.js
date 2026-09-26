@@ -7,6 +7,7 @@ import { sendOrderEmail } from "@/lib/sendOrderEmail";
 import { createCustomerOrderEmail } from "@/lib/template/createCustomerOrderEmail";
 import { createAdminOrderEmail } from "@/lib/template/createAdminOrderEmail";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
+import { resolveDeliveryFee } from "@/lib/delivery-fee";
 
 export async function GET(request) {
   const authCheck = await requireAuthenticatedUser(request);
@@ -219,18 +220,13 @@ async function handlePOST(request) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
     }
 
-    const [cart, paymentMethod, deliveryFeeRecord] = await Promise.all([
+    const [cart, paymentMethod, deliveryFees] = await Promise.all([
       prisma.cart.findUnique({
         where: { id: cartId, userId: user.id },
         include: { items: { include: { product: true } } },
       }),
-      prisma.paymentMethod.findUnique({ where: { id: paymentMethodId } }), //
-      prisma.deliveryFee.findFirst({
-        where: {
-          country: address.country,
-          OR: [{ city: address.city }, { city: null }],
-        },
-      }),
+      prisma.paymentMethod.findUnique({ where: { id: paymentMethodId } }),
+      prisma.deliveryFee.findMany(),
     ]);
 
     if (!cart || cart.items.length === 0) {
@@ -239,54 +235,73 @@ async function handlePOST(request) {
         { status: 400 }
       );
     }
-    if (!paymentMethod) {
+    if (!paymentMethod || !paymentMethod.isActive) {
       return NextResponse.json(
         { error: "Invalid payment method" },
         { status: 400 }
       );
     }
 
-    let transactionNumber = incomingTransactionNumber;
-    if (paymentMethod.requiresTransactionNumber && !transactionNumber) {
-      return NextResponse.json(
-        { error: "Transaction number is required" },
-        { status: 400 }
-      );
-    }
-    if (!paymentMethod.requiresTransactionNumber) {
+    // Every non-COD method (bKash, Nagad, bank...) needs the customer's
+    // transaction ID so the payment can be verified.
+    let transactionNumber = String(incomingTransactionNumber ?? "").trim();
+    if (!paymentMethod.isCashOnDelivery) {
+      if (!transactionNumber) {
+        return NextResponse.json(
+          { error: "Transaction number is required" },
+          { status: 400 }
+        );
+      }
+      if (transactionNumber.length > 100) {
+        return NextResponse.json(
+          { error: "Transaction number is too long" },
+          { status: 400 }
+        );
+      }
+    } else {
       transactionNumber = `COD_${Date.now()}_${Math.random()
         .toString(36)
         .substring(2, 8)
         .toUpperCase()}`;
     }
 
+    const unavailable = cart.items.find((item) => !item.product?.isActive);
+    if (unavailable) {
+      return NextResponse.json(
+        {
+          error: `${unavailable.product?.name || "A product"} is no longer available. Please remove it from your cart.`,
+        },
+        { status: 409 }
+      );
+    }
+
     const subtotal = cart.items.reduce(
       (sum, item) => sum + item.product.price * item.quantity,
       0
     );
-    const deliveryFee = deliveryFeeRecord?.amount || 150;
+    const deliveryFee = resolveDeliveryFee(deliveryFees, address);
     const orderTotal = subtotal + deliveryFee;
 
-    const groupedItems = new Map();
+    // Stock is tracked per product, so add up every size/colour line of the
+    // same product before checking and decrementing it.
+    const quantityByProduct = new Map();
     for (const item of cart.items) {
-      const key = item.productId;
-      groupedItems.set(key, {
-        ...item,
-        quantity: (groupedItems.get(key)?.quantity || 0) + item.quantity,
-      });
+      quantityByProduct.set(
+        item.productId,
+        (quantityByProduct.get(item.productId) || 0) + item.quantity
+      );
     }
-    const uniqueCartItems = Array.from(groupedItems.values());
+    const stockNeeds = Array.from(quantityByProduct, ([productId, quantity]) => ({
+      productId,
+      quantity,
+      name: cart.items.find((i) => i.productId === productId)?.product?.name,
+    }));
 
-    const productsInCart = await prisma.product.findMany({
-      where: { id: { in: uniqueCartItems.map((item) => item.productId) } },
-      select: { id: true, stockAmount: true, name: true },
-    });
-
-    for (const item of uniqueCartItems) {
-      const product = productsInCart.find((p) => p.id === item.productId);
-      if (!product || product.stockAmount < item.quantity) {
+    for (const need of stockNeeds) {
+      const product = cart.items.find((i) => i.productId === need.productId)?.product;
+      if (!product || product.stockAmount < need.quantity) {
         return NextResponse.json(
-          { error: `Insufficient stock for ${product?.name || "Unknown"}` },
+          { error: `Insufficient stock for ${need.name || "an item"}` },
           { status: 409 }
         );
       }
@@ -297,7 +312,7 @@ async function handlePOST(request) {
         // Decrement stock only when enough is left, so concurrent orders
         // can never oversell. Any shortfall rolls the whole order back.
         const stockResults = await Promise.all(
-          uniqueCartItems.map((item) =>
+          stockNeeds.map((item) =>
             tx.product.updateMany({
               where: {
                 id: item.productId,
@@ -312,7 +327,7 @@ async function handlePOST(request) {
         );
         const soldOutIndex = stockResults.findIndex((r) => r.count === 0);
         if (soldOutIndex !== -1) {
-          const name = uniqueCartItems[soldOutIndex].product?.name || "an item";
+          const name = stockNeeds[soldOutIndex].name || "an item";
           throw new InsufficientStockError(`Insufficient stock for ${name}`);
         }
 
@@ -330,9 +345,9 @@ async function handlePOST(request) {
           },
         });
 
-        // Create order items
+        // One order line per cart line, keeping each size/colour.
         await tx.orderItem.createMany({
-          data: uniqueCartItems.map((item) => ({
+          data: cart.items.map((item) => ({
             orderId: newOrder.id,
             productId: item.productId,
             quantity: item.quantity,
@@ -342,6 +357,8 @@ async function handlePOST(request) {
               price: item.product.price,
               selectedSize: item.selectedSize || null,
               selectedColor: item.selectedColor || null,
+              image: item.product.mainImage || null,
+              slug: item.product.slug || null,
             },
           })),
         });
@@ -395,6 +412,12 @@ async function handlePOST(request) {
   } catch (error) {
     if (error instanceof InsufficientStockError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error?.code === "P2002") {
+      return NextResponse.json(
+        { error: "This transaction number has already been used." },
+        { status: 409 }
+      );
     }
     console.error("Failed to create order:", error);
     return NextResponse.json(

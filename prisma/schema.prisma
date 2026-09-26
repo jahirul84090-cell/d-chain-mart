@@ -261,7 +261,8 @@ model OrderItem {
   order           Order    @relation(fields: [orderId], references: [id])
   product         Product  @relation(fields: [productId], references: [id])
 
-  @@unique([orderId, productId])
+  // One order can contain the same product in several sizes/colours,
+  // so (orderId, productId) is intentionally not unique.
   @@index([orderId, productId])
 }
 

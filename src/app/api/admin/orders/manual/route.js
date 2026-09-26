@@ -2,6 +2,9 @@ import { revalidateTag } from "next/cache";
 import { requireAuthenticatedUser } from "@/lib/authCheck";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getInvoiceWithOrderDetails } from "@/lib/ordershelper/orderhelper";
+import { generatePdfBuffer } from "@/lib/pdfgeneratehelper";
+import { sendInvoiceEmail } from "@/lib/otpinvoice";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -102,21 +105,31 @@ async function handlePOST(req) {
       { timeout: 10000 }
     );
 
-    const sendEmailResponse = await fetch(
-      `${req.nextUrl.origin}/api/admin/invoices/${newOrder.invoice.id}/pdf`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    // Generate and email the invoice directly (an internal HTTP call would
+    // not carry the admin's session and would be rejected).
+    let emailError = null;
+    try {
+      const invoice = await getInvoiceWithOrderDetails(newOrder.invoice.id);
+      const pdfBuffer = await generatePdfBuffer(invoice);
+      const emailResult = await sendInvoiceEmail({
+        recipientEmail: invoice.order.user.email,
+        recipientName: invoice.order.user.name,
+        invoiceNumber: invoice.invoiceNumber,
+        orderId: invoice.order.id,
+        orderTotal: invoice.order.orderTotal,
+        pdfBuffer,
+      });
+      if (!emailResult?.success) emailError = "Email sending failed";
+    } catch (error) {
+      console.error("Manual order: invoice email failed", error);
+      emailError = "Email sending failed";
+    }
 
-    if (!sendEmailResponse.ok) {
-      const errorData = await sendEmailResponse.json();
+    if (emailError) {
       return NextResponse.json(
         {
-          error: `Invoice created, but email sending failed: ${errorData.error}`,
+          error: `Invoice created, but ${emailError.toLowerCase()}.`,
+          newOrder,
         },
         { status: 201 }
       );

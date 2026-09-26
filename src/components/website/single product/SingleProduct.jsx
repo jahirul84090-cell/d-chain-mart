@@ -33,6 +33,14 @@ import useWishlistStore from "@/lib/wishlistStore";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 import ReviewForm from "@/components/others/ReviewFrom";
+import { useRouter, usePathname } from "next/navigation";
+import { parseOptions } from "@/lib/product-options";
+import { SUPPORT_PHONE, SUPPORT_WHATSAPP } from "@/lib/site";
+import {
+  ColorOptions,
+  SizeOptions,
+  QuantityStepper,
+} from "@/components/productCard/VariantSelector";
 
 /* ─── tiny helpers ─────────────────────────────────────────────────── */
 const priceFormatted = (n) =>
@@ -113,14 +121,8 @@ export default function SingleProductDetail({ productData }) {
   const [modalIndex, setModalIndex] = useState(0);
 
   /* variant state */
-  const availableColors = (productData?.availableColors || "")
-    .split(",")
-    .map((c) => c.trim())
-    .filter(Boolean);
-  const availableSizes = (productData?.availableSizes || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const availableColors = parseOptions(productData?.availableColors);
+  const availableSizes = parseOptions(productData?.availableSizes);
 
   const [selectedColor, setSelectedColor] = useState(
     availableColors[0] || null
@@ -137,7 +139,15 @@ export default function SingleProductDetail({ productData }) {
   const quantity = currentCartItem?.quantity || 1;
   const isUpdating = currentCartItem?.isUpdating || false;
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const loginHref = `/auth/login?callbackUrl=${encodeURIComponent(pathname || "/")}`;
+  const inStock = (productData.stockAmount ?? 0) > 0;
   const [isAdding, setIsAdding] = useState(false);
+  const [isBuying, setIsBuying] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  // Quantity chosen before adding to the cart.
+  const [desiredQty, setDesiredQty] = useState(1);
 
   /* reviews */
   const reviewsData = productData?.reviews || [];
@@ -159,15 +169,42 @@ export default function SingleProductDetail({ productData }) {
   }, [isLoggedIn, fetchWishlist]);
 
   /* ── actions ── */
+  // Returns true when the selection is complete and the item can be added.
+  const validateSelection = () => {
+    if (!isLoggedIn) {
+      toast.info("Please log in to continue.");
+      router.push(loginHref);
+      return false;
+    }
+    if (!inStock) { toast.warn("This product is sold out."); return false; }
+    if (availableSizes.length > 0 && !selectedSize) { toast.warn("Please select a size."); return false; }
+    if (availableColors.length > 0 && !selectedColor) { toast.warn("Please select a color."); return false; }
+    return true;
+  };
+
   const handleAddToCart = async () => {
-    if (!isLoggedIn) { toast.error("Please log in to add to cart."); return; }
-    if (productData.stockAmount <= 0) { toast.warn("This product is sold out."); return; }
-    if (availableSizes.length > 0 && !selectedSize) { toast.warn("Please select a size."); return; }
-    if (availableColors.length > 0 && !selectedColor) { toast.warn("Please select a color."); return; }
+    if (!validateSelection()) return;
     setIsAdding(true);
-    try { await addToCart(productData.id, 1, selectedSize, selectedColor); }
-    catch { toast.error("Failed to add to cart."); }
-    finally { setIsAdding(false); }
+    try {
+      await addToCart(productData.id, desiredQty, selectedSize, selectedColor);
+      setDesiredQty(1);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  // Adds the selection (if not already in the cart) and goes to checkout.
+  const handleBuyNow = async () => {
+    if (!validateSelection()) return;
+    setIsBuying(true);
+    try {
+      const ok = isInCart
+        ? true
+        : await addToCart(productData.id, desiredQty, selectedSize, selectedColor, { silent: true });
+      if (ok) router.push("/checkout");
+    } finally {
+      setIsBuying(false);
+    }
   };
 
   const handleUpdateQuantity = async (newQty) => {
@@ -175,10 +212,17 @@ export default function SingleProductDetail({ productData }) {
     await updateCartItemQuantity(currentCartItem.dbItemId, newQty, currentCartItem.id);
   };
 
-  const handleToggleWishlist = () => {
-    if (!isLoggedIn) { toast.error("Please log in to add to wishlist."); return; }
-    toggleWishlist(productData, isWishlisted);
-    toast.success(isWishlisted ? "Removed from wishlist." : "Added to wishlist!");
+  const handleToggleWishlist = async () => {
+    if (!isLoggedIn) {
+      toast.info("Please log in to save items.");
+      router.push(loginHref);
+      return;
+    }
+    setWishlistBusy(true);
+    const ok = await toggleWishlist(productData, isWishlisted);
+    setWishlistBusy(false);
+    if (ok) toast.success(isWishlisted ? "Removed from wishlist." : "Added to wishlist!");
+    else toast.error("Could not update your wishlist. Please try again.");
   };
 
   const handleShare = async () => {
@@ -192,10 +236,7 @@ export default function SingleProductDetail({ productData }) {
     } catch { toast.error("Could not share."); }
   };
 
-  const addButtonDisabled =
-    isAdding || !isLoggedIn || productData.stockAmount <= 0 ||
-    (availableSizes.length > 0 && !selectedSize) ||
-    (availableColors.length > 0 && !selectedColor);
+  const addButtonDisabled = isAdding || isBuying || !inStock;
 
   const discountPct = productData.discount > 0
     ? productData.discount
@@ -421,60 +462,32 @@ export default function SingleProductDetail({ productData }) {
 
               <div className="border-t border-gray-50 my-5" />
 
-              {/* Color selector */}
-              {availableColors.length > 0 && (
-                <div className="mb-5">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-sm font-semibold text-gray-800">Color</span>
-                    <span className="text-sm text-gray-400">{selectedColor || "—"}</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {availableColors.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setSelectedColor(color)}
-                        title={color}
-                        aria-label={`Select color ${color}`}
-                        className={`w-9 h-9 rounded-full border-2 transition-all shadow-sm hover:scale-110 ${
-                          selectedColor === color
-                            ? "ring-2 ring-offset-2 ring-primary border-white scale-110"
-                            : "border-white"
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Size selector */}
-              {availableSizes.length > 0 && (
-                <div className="mb-5">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-sm font-semibold text-gray-800">Size</span>
-                    <span className="text-sm text-gray-400">{selectedSize || "—"}</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {availableSizes.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
-                        className={`min-w-[44px] h-10 px-3 rounded-xl text-sm font-semibold border transition-all ${
-                          selectedSize === size
-                            ? "bg-primary text-white border-primary shadow-sm"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
-                        }`}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Variant selectors */}
+              <ColorOptions
+                colors={availableColors}
+                value={selectedColor}
+                onChange={setSelectedColor}
+              />
+              <SizeOptions
+                sizes={availableSizes}
+                value={selectedSize}
+                onChange={setSelectedSize}
+              />
 
               {/* ── Cart actions ── */}
+              {inStock && !isInCart && (
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="text-sm font-semibold text-gray-800">Quantity</span>
+                  <QuantityStepper
+                    value={desiredQty}
+                    onChange={setDesiredQty}
+                    max={productData.stockAmount}
+                    disabled={isAdding || isBuying}
+                  />
+                </div>
+              )}
               <div className="flex items-stretch gap-3 mt-2">
-                {productData.stockAmount <= 0 ? (
+                {!inStock ? (
                   <Button disabled className="flex-1 h-12 text-base rounded-xl opacity-60">
                     Sold Out
                   </Button>
@@ -482,18 +495,22 @@ export default function SingleProductDetail({ productData }) {
                   <div className="flex-1 flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 h-12">
                     <button
                       onClick={() => handleUpdateQuantity(quantity - 1)}
-                      disabled={isUpdating || quantity <= 1}
+                      disabled={quantity <= 1}
                       className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 transition"
                       aria-label="Decrease quantity"
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <span className="text-base font-bold w-10 text-center">
-                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : quantity}
+                    <span className="text-sm font-semibold text-gray-700" aria-live="polite">
+                      {isUpdating ? (
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                      ) : (
+                        <>{quantity} in cart</>
+                      )}
                     </span>
                     <button
                       onClick={() => handleUpdateQuantity(quantity + 1)}
-                      disabled={isUpdating || quantity >= productData.stockAmount}
+                      disabled={quantity >= productData.stockAmount}
                       className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-200 disabled:opacity-40 transition"
                       aria-label="Increase quantity"
                     >
@@ -504,7 +521,8 @@ export default function SingleProductDetail({ productData }) {
                   <Button
                     onClick={handleAddToCart}
                     disabled={addButtonDisabled}
-                    className="flex-1 h-12 text-base font-semibold rounded-xl gap-2 transition-all active:scale-[0.98]"
+                    variant="outline"
+                    className="flex-1 h-12 text-base font-semibold rounded-xl gap-2 border-primary text-primary hover:bg-primary/5 hover:text-primary transition-all active:scale-[0.98]"
                   >
                     {isAdding ? (
                       <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
@@ -516,6 +534,8 @@ export default function SingleProductDetail({ productData }) {
 
                 <button
                   onClick={handleToggleWishlist}
+                  disabled={wishlistBusy}
+                  aria-pressed={isWishlisted}
                   aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                   className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-all hover:scale-105 active:scale-95 ${
                     isWishlisted
@@ -535,25 +555,39 @@ export default function SingleProductDetail({ productData }) {
                 </button>
               </div>
 
-              {/* In-cart quick links */}
-              {isInCart && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <Link href="/cart">
-                    <Button variant="outline" className="w-full h-11 rounded-xl text-sm">
-                      View Cart
-                    </Button>
-                  </Link>
-                  <Link href="/checkout">
-                    <Button className="w-full h-11 rounded-xl text-sm">
-                      Checkout
-                    </Button>
-                  </Link>
-                </div>
+              {/* Buy now / in-cart links */}
+              {inStock && (
+                isInCart ? (
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <Link href="/cart">
+                      <Button variant="outline" className="w-full h-11 rounded-xl text-sm">
+                        View Cart
+                      </Button>
+                    </Link>
+                    <Link href="/checkout">
+                      <Button className="w-full h-11 rounded-xl text-sm">
+                        Checkout
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={handleBuyNow}
+                    disabled={isBuying || isAdding}
+                    className="mt-3 w-full h-12 text-base font-semibold rounded-xl gap-2 active:scale-[0.98]"
+                  >
+                    {isBuying ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
+                    ) : (
+                      <>Buy Now</>
+                    )}
+                  </Button>
+                )
               )}
 
               {!isLoggedIn && (
-                <p className="text-center mt-3 text-xs text-gray-400">
-                  <Link href="/login" className="text-primary font-medium hover:underline">Log in</Link> to add to cart or wishlist.
+                <p className="text-center mt-3 text-xs text-gray-500">
+                  <Link href={loginHref} className="text-primary font-medium hover:underline">Log in</Link> to buy, add to cart or save to wishlist.
                 </p>
               )}
 
@@ -574,31 +608,31 @@ export default function SingleProductDetail({ productData }) {
                 ))}
               </div>
 
-              {/* EMI button */} 
-              {!isLoggedIn ? <>
-                <Button variant="outline" className="w-full disabled h-11 rounded-xl text-sm gap-2 mb-4 border-dashed">
-                  <CreditCard className="w-4 h-4" />
-                 Login to Apply for EMI / Loan
-                </Button>
-              </>:<><Link href={`/loans/apply?slug=${productData.slug}`}>
+              {/* EMI */}
+              <Link
+                href={
+                  isLoggedIn
+                    ? `/loans/apply?slug=${encodeURIComponent(productData.slug)}`
+                    : `/auth/login?callbackUrl=${encodeURIComponent(`/loans/apply?slug=${productData.slug}`)}`
+                }
+              >
                 <Button variant="outline" className="w-full h-11 rounded-xl text-sm gap-2 mb-4 border-dashed">
                   <CreditCard className="w-4 h-4" />
-                  Apply for EMI / Loan
+                  {isLoggedIn ? "Apply for EMI / Loan" : "Log in to apply for EMI / Loan"}
                 </Button>
-              </Link></>}
-              
+              </Link>
 
               {/* Support card */}
               <div className="rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 p-4">
                 <p className="text-sm font-semibold text-gray-800">Need help?</p>
                 <p className="text-xs text-gray-500 mt-0.5">Support available 10 AM – 10 PM daily.</p>
                 <div className="grid grid-cols-2 gap-2 mt-3">
-                  <a href="tel:+8801XXXXXXXXX">
+                  <a href={`tel:${SUPPORT_PHONE}`}>
                     <Button variant="outline" className="w-full h-10 rounded-xl text-xs gap-1.5 bg-white">
                       <Phone className="w-3.5 h-3.5" /> Call Now
                     </Button>
                   </a>
-                  <a href="https://wa.me/8801XXXXXXXXX" target="_blank" rel="noopener noreferrer">
+                  <a href={`https://wa.me/${SUPPORT_WHATSAPP}`} target="_blank" rel="noopener noreferrer">
                     <Button className="w-full h-10 rounded-xl text-xs gap-1.5 bg-green-500 hover:bg-green-600 text-white border-0">
                       <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                     </Button>

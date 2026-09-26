@@ -56,13 +56,11 @@ export async function GET(request) {
             {
               name: {
                 contains: mainProduct.name.split(" ")[0],
-                mode: "insensitive",
               },
             },
             {
               description: {
                 contains: mainProduct.name.split(" ")[0],
-                mode: "insensitive",
               },
             },
           ],

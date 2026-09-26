@@ -3,327 +3,253 @@ import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 import { useEffect } from "react";
 
-const debounce = (func, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => {
-      func(...args);
-    }, delay);
-  };
-};
+const QUANTITY_SYNC_DELAY_MS = 500;
+
+export const cartItemKey = (productId, size, color) =>
+  `${productId}-${size || "no-size"}-${color || "no-color"}`;
+
+const toClientItem = (item) => ({
+  id: cartItemKey(item.productId, item.selectedSize, item.selectedColor),
+  productId: item.productId,
+  name: item.product.name,
+  price: item.product.price,
+  quantity: item.quantity,
+  stockAmount: item.product.stockAmount,
+  selectedSize: item.selectedSize,
+  selectedColor: item.selectedColor,
+  image: item.product.mainImage,
+  dbItemId: item.id,
+  slug: item.product.slug,
+});
+
+async function readError(response, fallback) {
+  try {
+    const data = await response.json();
+    return data?.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+// One pending timer per cart line, so quick changes to different items
+// never cancel each other's server update.
+const pendingQuantityTimers = new Map();
 
 const useCartStore = create((set, get) => {
-  const apiUpdateCartItemQuantity = async (
-    dbItemId,
-    newQuantity,
-    clientItemId
-  ) => {
+  const syncQuantity = async (dbItemId, newQuantity, clientItemId, previousQuantity) => {
     try {
-      if (newQuantity < 1) {
-        await get().removeFromCart(dbItemId, clientItemId);
-        return;
-      }
-
-      // Fetch stock amount to validate quantity
-      const item = get().cartItems.find((item) => item.id === clientItemId);
-      if (!item) return;
-      const stockAmount = await get().fetchProductStock(item.productId);
-      if (newQuantity > stockAmount) {
-        throw new Error(`Only ${stockAmount} items available in stock.`);
-      }
-
       const response = await fetch("/api/cart", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         cache: "no-store",
-        body: JSON.stringify({
-          action: "update",
-          itemId: dbItemId,
-          quantity: newQuantity,
-        }),
+        body: JSON.stringify({ itemId: dbItemId, quantity: newQuantity }),
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update item quantity");
+        throw new Error(await readError(response, "Failed to update quantity."));
       }
+      set({
+        cartItems: get().cartItems.map((item) =>
+          item.id === clientItemId ? { ...item, isUpdating: false } : item
+        ),
+      });
     } catch (error) {
-      console.error("Error updating cart item quantity:", error);
-      const originalItems = get().cartItems.map((item) =>
-        item.id === clientItemId
-          ? { ...item, isUpdating: false, quantity: item.originalQuantity }
-          : item
-      );
-      set({ cartItems: originalItems });
-      get().updateTotals();
+      // Roll back to the last quantity the server accepted.
+      set({
+        cartItems: get().cartItems.map((item) =>
+          item.id === clientItemId
+            ? { ...item, quantity: previousQuantity, isUpdating: false }
+            : item
+        ),
+      });
       toast.error(error.message);
     } finally {
-      const currentItems = get().cartItems.map((item) =>
-        item.id === clientItemId ? { ...item, isUpdating: false } : item
-      );
-      set({ cartItems: currentItems });
+      get().updateTotals();
     }
   };
-
-  const debouncedApiUpdate = debounce(apiUpdateCartItemQuantity, 500);
 
   return {
     cartId: null,
     cartItems: [],
     totalItems: 0,
     totalPrice: 0,
-
-    // Fetch product stock by productId
-    fetchProductStock: async (productId) => {
-      try {
-        const response = await fetch(`/api/admin/product/${productId}`, {
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          throw new Error("Failed to fetch product stock.");
-        }
-        const data = await response.json();
-        return data.product.stockAmount || 0;
-      } catch (error) {
-        console.error("Error fetching product stock:", error);
-        toast.error(error.message || "Failed to fetch product stock.");
-        return 0;
-      }
-    },
+    isInitializing: false,
+    hasLoaded: false,
 
     updateTotals: () => {
       const { cartItems } = get();
-      const totalItems = cartItems.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      );
-      const totalPrice = cartItems.reduce(
-        (sum, item) => sum + item.quantity * item.price,
-        0
-      );
-      set({ totalItems, totalPrice });
+      set({
+        totalItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        totalPrice: cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0),
+      });
     },
 
     initializeCart: async () => {
+      set({ isInitializing: true });
       try {
-        const response = await fetch("/api/cart", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          cache: "no-store",
-        });
+        const response = await fetch("/api/cart", { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`Failed to fetch cart: ${response.statusText}`);
         }
         const cart = await response.json();
-        set({
-          cartId: cart.id,
-          cartItems: cart.items.map((item) => ({
-            id: `${item.productId}-${item.selectedSize || "no-size"}-${
-              item.selectedColor || "no-color"
-            }`,
-            productId: item.productId,
-            name: item.product.name,
-            price: item.product.price,
-            quantity: item.quantity,
-            selectedSize: item.selectedSize,
-            selectedColor: item.selectedColor,
-            image: item.product.mainImage,
-            dbItemId: item.id,
-            slug: item.product.slug,
-          })),
-        });
+        set({ cartId: cart.id, cartItems: cart.items.map(toClientItem) });
         get().updateTotals();
       } catch (error) {
         console.error("Error initializing cart:", error);
         set({ cartId: null, cartItems: [], totalItems: 0, totalPrice: 0 });
+      } finally {
+        set({ isInitializing: false, hasLoaded: true });
       }
     },
 
-    addToCart: async (productId, quantity, selectedSize, selectedColor) => {
-      const { cartItems, updateTotals, fetchProductStock } = get();
-      const itemIdentifier = `${productId}-${selectedSize || "no-size"}-${
-        selectedColor || "no-color"
-      }`;
-      const existingItemIndex = cartItems.findIndex(
-        (item) => item.id === itemIdentifier
-      );
-
-      // Fetch stock amount
-      const stockAmount = await fetchProductStock(productId);
-      if (stockAmount <= 0) {
-        toast.error("This product is out of stock.");
-        return;
-      }
-      if (quantity > stockAmount) {
-        toast.error(`Only ${stockAmount} items available in stock.`);
-        return;
-      }
-
-      if (existingItemIndex !== -1) {
-        const existingItem = cartItems[existingItemIndex];
-        const newQuantity = existingItem.quantity + quantity;
-        if (newQuantity > stockAmount) {
-          toast.error(`Cannot add more items. Only ${stockAmount} available.`);
-          return;
-        }
-        await get().updateCartItemQuantity(
-          existingItem.dbItemId,
-          newQuantity,
-          itemIdentifier
-        );
-        return;
-      }
-
-      const tempItem = {
-        id: itemIdentifier,
-        dbItemId: null,
-        productId,
-        name: "Loading...",
-        price: 0,
-        quantity,
-        selectedSize,
-        selectedColor,
-        image: null,
-        isUpdating: true,
-      };
-      const previousItems = cartItems;
-      set({ cartItems: [...cartItems, tempItem] });
-      updateTotals();
+    /**
+     * Adds a product variant to the cart. Stock, availability and the chosen
+     * size/colour are validated by the server. Returns true on success.
+     */
+    addToCart: async (productId, quantity, selectedSize, selectedColor, { silent = false } = {}) => {
+      const key = cartItemKey(productId, selectedSize, selectedColor);
+      const existing = get().cartItems.find((item) => item.id === key);
 
       try {
         const response = await fetch("/api/cart", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           cache: "no-store",
           body: JSON.stringify({
-            action: "add",
             productId,
             quantity,
-            selectedSize,
-            selectedColor,
+            selectedSize: selectedSize || null,
+            selectedColor: selectedColor || null,
           }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to add to cart");
+          throw new Error(await readError(response, "Failed to add to cart."));
         }
         await get().initializeCart();
-        toast.success("Item added to cart!");
+        if (!silent) {
+          toast.success(existing ? "Cart updated." : "Added to cart!");
+        }
+        return true;
       } catch (error) {
-        console.error("Error adding to cart:", error);
-        set({ cartItems: previousItems });
-        updateTotals();
-        toast.error(error.message);
+        if (!silent) toast.error(error.message);
+        return false;
       }
     },
 
     updateCartItemQuantity: (dbItemId, newQuantity, clientItemId) => {
-      const { cartItems, updateTotals } = get();
-      const itemToUpdate = cartItems.find((item) => item.id === clientItemId);
-      if (!itemToUpdate) {
-        return;
-      }
+      const item = get().cartItems.find((i) => i.id === clientItemId);
+      if (!item) return;
 
       if (newQuantity <= 0) {
         get().removeFromCart(dbItemId, clientItemId);
         return;
       }
 
-      const updatedItems = cartItems.map((item) =>
-        item.id === clientItemId
-          ? {
-              ...item,
-              quantity: newQuantity,
-              isUpdating: true,
-              originalQuantity: item.quantity,
-            }
-          : item
-      );
-      set({ cartItems: updatedItems });
-      updateTotals();
-
-      debouncedApiUpdate(dbItemId, newQuantity, clientItemId);
-    },
-
-    removeFromCart: async (dbItemId, clientItemId) => {
-      const { cartItems, updateTotals } = get();
-      const itemToRemove = cartItems.find((item) => item.id === clientItemId);
-      if (!itemToRemove) {
+      if (item.stockAmount != null && newQuantity > item.stockAmount) {
+        toast.error(`Only ${item.stockAmount} available in stock.`);
         return;
       }
 
-      const previousItems = cartItems;
+      // Remember the last confirmed quantity for rollback.
+      const previousQuantity = item.isUpdating ? item.previousQuantity : item.quantity;
 
-      const filteredItems = cartItems.filter(
-        (item) => item.id !== clientItemId
+      set({
+        cartItems: get().cartItems.map((i) =>
+          i.id === clientItemId
+            ? { ...i, quantity: newQuantity, isUpdating: true, previousQuantity }
+            : i
+        ),
+      });
+      get().updateTotals();
+
+      clearTimeout(pendingQuantityTimers.get(clientItemId));
+      pendingQuantityTimers.set(
+        clientItemId,
+        setTimeout(() => {
+          pendingQuantityTimers.delete(clientItemId);
+          syncQuantity(dbItemId, newQuantity, clientItemId, previousQuantity);
+        }, QUANTITY_SYNC_DELAY_MS)
       );
-      set({ cartItems: filteredItems });
-      updateTotals();
+    },
+
+    removeFromCart: async (dbItemId, clientItemId) => {
+      const previousItems = get().cartItems;
+      if (!previousItems.some((item) => item.id === clientItemId)) return;
+
+      clearTimeout(pendingQuantityTimers.get(clientItemId));
+      pendingQuantityTimers.delete(clientItemId);
+
+      set({ cartItems: previousItems.filter((item) => item.id !== clientItemId) });
+      get().updateTotals();
 
       try {
         const response = await fetch("/api/cart", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           cache: "no-store",
-          body: JSON.stringify({
-            action: "remove",
-            itemId: dbItemId,
-          }),
+          body: JSON.stringify({ itemId: dbItemId }),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to remove item");
+          throw new Error(await readError(response, "Failed to remove item."));
         }
         toast.success("Item removed from cart.");
       } catch (error) {
-        console.error("Error removing from cart:", error);
         set({ cartItems: previousItems });
-        updateTotals();
+        get().updateTotals();
         toast.error(error.message);
       }
     },
 
     clearCart: async () => {
+      const previous = get();
+      set({ cartItems: [], totalItems: 0, totalPrice: 0 });
       try {
         const response = await fetch("/api/cart", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           cache: "no-store",
-          body: JSON.stringify({
-            action: "clear",
-          }),
+          body: JSON.stringify({}),
         });
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to clear cart");
+          throw new Error(await readError(response, "Failed to clear cart."));
         }
-        set({ cartId: null, cartItems: [], totalItems: 0, totalPrice: 0 });
         toast.success("Cart cleared.");
       } catch (error) {
-        console.error("Error clearing cart:", error);
+        set({
+          cartItems: previous.cartItems,
+          totalItems: previous.totalItems,
+          totalPrice: previous.totalPrice,
+        });
         toast.error(error.message);
       }
+    },
+
+    // Local reset after an order: the server already emptied the cart.
+    resetCart: () => {
+      pendingQuantityTimers.forEach((t) => clearTimeout(t));
+      pendingQuantityTimers.clear();
+      set({ cartItems: [], totalItems: 0, totalPrice: 0 });
+    },
+
+    // Forget everything (e.g. on sign-out) so the next user loads fresh.
+    resetSession: () => {
+      pendingQuantityTimers.forEach((t) => clearTimeout(t));
+      pendingQuantityTimers.clear();
+      set({ cartId: null, cartItems: [], totalItems: 0, totalPrice: 0, hasLoaded: false });
     },
   };
 });
 
 export function useCartWithSession() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const store = useCartStore();
+  const { hasLoaded, isInitializing, initializeCart } = store;
 
+  // Load the cart once per session (a failed load is not retried in a loop).
   useEffect(() => {
-    if (status === "authenticated" && session?.user && !store.cartId) {
-      store.initializeCart();
+    if (status === "authenticated" && !hasLoaded && !isInitializing) {
+      initializeCart();
     }
-  }, [status, session, store]);
+  }, [status, hasLoaded, isInitializing, initializeCart]);
 
   return store;
 }

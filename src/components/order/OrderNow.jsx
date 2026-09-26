@@ -34,9 +34,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import useCartStore from "@/lib/cartStore";
+import { useCartWithSession } from "@/lib/cartStore";
 import NewAddressForm from "./NewAddressForm";
 import PaymentMethods from "./PaymentMethods";
+import { resolveDeliveryFee } from "@/lib/delivery-fee";
 
 const STEPS = [
   { id: 1, label: "Cart", icon: ShoppingCart },
@@ -56,7 +57,7 @@ export default function OrderNowPage() {
   const [deliveryFees, setDeliveryFees] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const activeStep = 3;
-  const { cartItems, cartId, clearCart } = useCartStore();
+  const { cartItems, cartId, resetCart } = useCartWithSession();
   const router = useRouter();
 
   const handleAddressSave = (newAddress) => {
@@ -78,7 +79,7 @@ export default function OrderNowPage() {
           ]);
         if (!isMounted) return;
         if (!addressResponse.ok || addressResponse.status === 401) {
-          router.push("/login");
+          router.push("/auth/login?callbackUrl=%2Fcheckout");
           toast.error("Please log in to place an order");
           return;
         }
@@ -112,16 +113,11 @@ export default function OrderNowPage() {
     };
   }, [router]);
 
-  const getDeliveryFee = () => {
-    const addr = addresses.find((a) => a.id === selectedAddressId);
-    if (!addr) return 0;
-    const matched = deliveryFees.find(
-      (f) =>
-        f.country.toLowerCase() === addr.country.toLowerCase() &&
-        (!f.city || f.city.toLowerCase() === addr.city.toLowerCase()),
+  const getDeliveryFee = () =>
+    resolveDeliveryFee(
+      deliveryFees,
+      addresses.find((a) => a.id === selectedAddressId),
     );
-    return matched ? matched.amount : 150;
-  };
 
   const subtotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -137,6 +133,10 @@ export default function OrderNowPage() {
   );
 
   const handleManualOrder = async (methodId, transactionNumber) => {
+    if (cartItems.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
     if (!cartId || !selectedAddressId) {
       toast.error("Please ensure your cart and shipping address are selected.");
       return;
@@ -158,7 +158,7 @@ export default function OrderNowPage() {
         throw new Error(errorData.error || "Failed to place order");
       }
       const { order } = await response.json();
-      clearCart();
+      resetCart();
       toast.success("Order placed successfully!");
       router.push(`/orders/confirm/${order.id}`);
     } catch (error) {
@@ -213,41 +213,23 @@ export default function OrderNowPage() {
       );
     }
 
-    if (selectedMethod.accountNumber) {
-      return (
-        <Button
-          className="w-full h-12 bg-gray-900 hover:bg-gray-800 active:scale-[0.98] text-white text-sm font-semibold rounded-xl gap-2 transition-all duration-200 shadow-sm hover:shadow-md"
-          onClick={() =>
-            handleManualOrder(selectedMethod.id, transactionNumber)
-          }
-          disabled={submitting || !transactionNumber.length}
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Processing…
-            </>
-          ) : (
-            <>
-              <Lock className="h-4 w-4" /> Confirm Payment · {fmtTotal}
-            </>
-          )}
-        </Button>
-      );
-    }
-
+    // Every other method is paid manually (bKash, Nagad, bank transfer):
+    // the customer sends money, then enters the transaction ID.
     return (
       <Button
         className="w-full h-12 bg-gray-900 hover:bg-gray-800 active:scale-[0.98] text-white text-sm font-semibold rounded-xl gap-2 transition-all duration-200 shadow-sm hover:shadow-md"
-        onClick={() => handleLivePayment(selectedMethod.name)}
-        disabled={submitting}
+        onClick={() =>
+          handleManualOrder(selectedMethod.id, transactionNumber)
+        }
+        disabled={submitting || !transactionNumber.length}
       >
         {submitting ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Redirecting…
+            <Loader2 className="h-4 w-4 animate-spin" /> Processing…
           </>
         ) : (
           <>
-            <CreditCard className="h-4 w-4" /> Pay Now · {fmtTotal}
+            <Lock className="h-4 w-4" /> Confirm Payment · {fmtTotal}
           </>
         )}
       </Button>
@@ -492,7 +474,7 @@ export default function OrderNowPage() {
                   >
                     <div className="relative flex-shrink-0">
                       <Image
-                        src={item.image || "/placeholder.jpg"}
+                        src={item.image || "/placeholder.png"}
                         alt={item.name}
                         width={52}
                         height={52}

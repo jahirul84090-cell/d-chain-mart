@@ -4,6 +4,7 @@ import AllProducts from "@/components/website/All Products/AllProducts";
 import React, { Suspense } from "react";
 import PageLoader from "@/components/others/PageLoader";
 import { toJsonLd } from "@/lib/jsonld";
+import { getLatestProducts, safely } from "@/lib/storefront";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -91,19 +92,8 @@ export const metadata = {
 // Fetches a lightweight product list (name + slug + image + price) for JSON-LD.
 // Used ONLY for structured data — AllProducts client component fetches its own data.
 
-async function getProductsForJsonLd() {
-  try {
-    const res = await fetch(`${SITE_URL}/api/admin/product?limit=50&fields=name,slug,price,mainImage,images,category`,{
-    next: { revalidate: 600 },
-  });
-    if (!res.ok) return [];
-    const data = await res.json();
-    // Support both { products: [] } and flat []
-    return Array.isArray(data) ? data : (data?.products ?? []);
-  } catch (err) {
-    console.error("[allproducts/page] JSON-LD fetch failed:", err.message);
-    return [];
-  }
+function getProductsForJsonLd() {
+  return safely(getLatestProducts(50), []);
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
